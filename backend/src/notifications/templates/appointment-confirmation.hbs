@@ -1,0 +1,24 @@
+<p>Bonjour <strong>{{patientName}}</strong>,</p>
+
+<p>Votre rendez-vous au <strong>{{labName}}</strong> a bien été enregistré.</p>
+
+<div style="background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <p style="margin: 8px 0;"><strong>📅 Date :</strong> {{date}}</p>
+    <p style="margin: 8px 0;"><strong>🕐 Heure :</strong> {{time}}</p>
+    <p style="margin: 8px 0;"><strong>🏥 Type :</strong> {{type}}</p>
+    {{#if address}}
+    <p style="margin: 8px 0;"><strong>📍 Adresse :</strong> {{address}}</p>
+    {{/if}}
+</div>
+
+<p><strong>Rappels importants :</strong></p>
+<ul>
+    <li>Pour la plupart des analyses, venez <strong>à jeun</strong> (8h sans manger)</li>
+    <li>Apportez votre ordonnance et pièce d'identité</li>
+    <li>En cas d'empêchement, merci de nous prévenir</li>
+</ul>
+
+<p class="secondary-text" style="margin-top: 30px; border-top: 1px solid #f0f0f0; padding-top: 20px;">
+    À bientôt,<br>
+    <strong>{{labName}}</strong>
+</p>

@@ -4,8 +4,11 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { join } from 'path';
 import { SmsService } from './sms.service';
 import { EmailService } from './email.service';
+import { WhatsAppService } from './whatsapp.service';
+import { DynamicNotificationService } from './dynamic-notification.service';
 import { DynamicConfigService } from '../dynamic-config.service';
 import { PrismaService } from '../prisma.service';
+import { EncryptionService } from '../shared/encryption.service';
 
 @Module({
     imports: [
@@ -42,7 +45,8 @@ import { PrismaService } from '../prisma.service';
             inject: [DynamicConfigService],
         }),
     ],
-    providers: [SmsService, EmailService], // Removed DynamicConfigService, PrismaService
-    exports: [SmsService, EmailService],
+    providers: [SmsService, EmailService, WhatsAppService, DynamicNotificationService, EncryptionService],
+    exports: [SmsService, EmailService, WhatsAppService, DynamicNotificationService],
 })
 export class NotificationsModule { }
+

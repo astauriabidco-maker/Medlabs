@@ -95,4 +95,60 @@ export class EmailService {
         });
         this.logger.log(`Password reset email sent to ${to}`);
     }
+
+    /**
+     * Send appointment confirmation email to patient
+     */
+    async sendAppointmentConfirmation(params: {
+        to: string;
+        patientName: string;
+        appointmentDate: Date;
+        appointmentType: string;
+        tenantId: string;
+        address?: string;
+    }) {
+        try {
+            const tenant = await this.prisma.tenant.findUnique({
+                where: { id: params.tenantId },
+            });
+
+            const labName = tenant?.name || 'Votre Laboratoire';
+
+            const formattedDate = params.appointmentDate.toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            });
+            const formattedTime = params.appointmentDate.toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            const typeLabel = params.appointmentType === 'HOME_SAMPLING'
+                ? 'Prélèvement à domicile'
+                : 'Prélèvement au laboratoire';
+
+            await this.mailerService.sendMail({
+                to: params.to,
+                subject: `✅ Confirmation de votre rendez-vous - ${labName}`,
+                template: 'appointment-confirmation',
+                context: {
+                    patientName: params.patientName,
+                    labName,
+                    date: formattedDate,
+                    time: formattedTime,
+                    type: typeLabel,
+                    address: params.address,
+                    layout: 'layouts/main',
+                },
+            });
+
+            this.logger.log(`Appointment confirmation email sent to ${params.to} for ${labName}`);
+            return { success: true };
+        } catch (error: any) {
+            this.logger.error(`Failed to send appointment confirmation: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    }
 }
