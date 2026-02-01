@@ -35,6 +35,12 @@ enum TenantType {
   OTHER
 }
 
+enum IntegrationProvider {
+  TWILIO
+  META       // WhatsApp Business API direct
+  ORANGE     // Orange SMS Cameroon
+}
+
 enum DocumentStatus {
   PENDING_UPLOAD
   UPLOADED
@@ -45,6 +51,11 @@ enum DocumentStatus {
   FAILED
 }
 
+enum IntegrationStatus {
+  SUCCESS
+  ERROR
+  PENDING_INFO
+}
 enum AuditAction {
   LOGIN
   LOGIN_FAILED
@@ -53,6 +64,42 @@ enum AuditAction {
   DELETE_DOCUMENT
   UPDATE_SETTINGS
   EXPORT_DATA
+  PAYMENT_RECEIVED
+}
+
+enum LicenseStatus {
+  AVAILABLE
+  USED
+}
+
+enum PaymentStatus {
+  FREE       // No payment required
+  UNPAID     // Payment pending
+  PAID       // Payment completed
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum PaymentProviderType {
+  CAMPAY        // Aggregator (MTN + Orange)
+  ORANGE_MONEY  // Direct Orange Money CM API
+  MTN_MOMO      // Direct MTN MoMo CM API
+}
+
+enum AppointmentType {
+  LAB_VISIT       // Consultation au laboratoire
+  HOME_SAMPLING   // Prélèvement à domicile
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
 }
 
 // --------------------------------------
@@ -96,12 +143,93 @@ model Tenant {
   // Status
   isActive Boolean @default(true) @map("is_active")
 
+  // Feature Flags & Licensing
+  features          String[]  @default([])         // e.g., ["AUTO_SYNC", "LONG_TERM_ARCHIVE"]
+  licenseKey        String?   @map("license_key")  // Activation key used
+  syncApiKey        String?   @unique @map("sync_api_key")  // API key for Windows automation
+  isAutoSyncEnabled Boolean   @default(false) @map("is_auto_sync_enabled")
+
+  // White Labeling / Branding
+  brandColor    String? @map("brand_color")     // Hex code, e.g., "#3B82F6"
+  brandLogoUrl  String? @map("brand_logo_url")  // Public URL to logo
+
+  // Critical Value Alerts
+  biologistPhone String? @map("biologist_phone")  // Phone for critical alerts
+
+  // Mobile Money Integration
+  paymentProvider  PaymentProviderType? @map("payment_provider")
+  
+  // Campay Credentials (Aggregator)
+  campayUsername   String? @map("campay_username")  // ENCRYPTED
+  campayPassword   String? @map("campay_password")  // ENCRYPTED
+  
+  // Orange Money CM Credentials (Direct API)
+  orangeUsername   String? @map("orange_username")    // ENCRYPTED
+  orangePassword   String? @map("orange_password")    // ENCRYPTED
+  orangeAuthToken  String? @map("orange_auth_token")  // X-AUTH-TOKEN
+  orangeMsisdn     String? @map("orange_msisdn")       // ChannelUserMsisdn
+  
+  // MTN MoMo CM Credentials (Direct API)
+  mtnApiUser          String? @map("mtn_api_user")
+  mtnApiKey           String? @map("mtn_api_key")            // ENCRYPTED
+  mtnSubscriptionKey  String? @map("mtn_subscription_key")   // Primary key
+  mtnTargetEnv        String? @map("mtn_target_env")         // sandbox | production
+
+  // Appointment Booking Settings
+  appointmentDuration       Int     @default(15) @map("appointment_duration")  // Minutes per slot
+  openingTime               String  @default("07:00") @map("opening_time")
+  closingTime               String  @default("15:00") @map("closing_time")
+  isHomeSamplingEnabled     Boolean @default(false) @map("is_home_sampling_enabled")
+  maxAppointmentsPerSlot    Int     @default(1) @map("max_appointments_per_slot")  // How many patients per slot
+
+  // HL7/LIS Integration Settings
+  hl7IntegrationEnabled Boolean @default(false) @map("hl7_integration_enabled")
+  pdfTemplateHeader     String? @db.Text @map("pdf_template_header")  // HTML/Base64 for generated PDF header
+
+  // Business Intelligence (Premium Feature)
+  statsEnabled Boolean @default(false) @map("stats_enabled")
+
   // Relations
-  users     User[]
-  documents Document[]
-  auditLogs AuditLog[]
+  users           User[]
+  documents       Document[]
+  auditLogs       AuditLog[]
+  integration     TenantIntegration?
+  licenses        License[]
+  criticalRules   CriticalRule[]
+  transactions    Transaction[]
+  appointments    Appointment[]
+  blockedSlots    BlockedSlot[]
+  integrationLogs IntegrationLog[]
 
   @@map("tenants")
+}
+
+// API Integration Configuration (BYOK - Bring Your Own Key)
+model TenantIntegration {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Tenant Relation (1-to-1)
+  tenantId String @unique @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Provider Configuration
+  provider    IntegrationProvider @default(TWILIO)
+  accountId   String              @map("account_id")  // Twilio SID, Meta App ID, etc.
+  authToken   String              @map("auth_token")  // ENCRYPTED - Never store plain text!
+  phoneNumber String              @map("phone_number") // Sender number (+237...)
+
+  // Feature Toggles
+  smsEnabled      Boolean @default(true) @map("sms_enabled")
+  whatsappEnabled Boolean @default(false) @map("whatsapp_enabled")
+  isActive        Boolean @default(true) @map("is_active")
+
+  // Metadata
+  lastTestedAt DateTime? @map("last_tested_at")
+  testStatus   String?   @map("test_status") // 'success' | 'failed' | null
+
+  @@map("tenant_integrations")
 }
 
 model User {
@@ -159,18 +287,32 @@ model Document {
   patientDob       DateTime? @map("patient_dob") // Optional, for security challenge
 
   // Security & Lifecycle
-  accessKey String         @unique @default(uuid()) @map("access_key") // The "Magic Link" token
-  expiresAt DateTime       @map("expires_at") // HDS Retention Policy
+  accessKey  String         @unique @default(uuid()) @map("access_key") // The "Magic Link" token
+  accessCode String?        @map("access_code") // Short readable code for physical receipt (e.g., "X4-92")
+  expiresAt  DateTime       @map("expires_at") // HDS Retention Policy
   status       DocumentStatus @default(UPLOADED)
   isAnonymized Boolean        @default(false) @map("is_anonymized")
+  isCritical   Boolean        @default(false) @map("is_critical")  // Flagged by keyword analysis
+
+  // Payment (Paywall)
+  price         Float          @default(0)
+  paymentStatus PaymentStatus  @default(FREE) @map("payment_status")
 
   // Traceability
   uploadedById String? @map("uploaded_by_id")
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
 
+  // Business Intelligence
+  prescriberName String? @map("prescriber_name")  // Doctor who prescribed the tests
+
+  // Payment Transactions
+  transactions Transaction[]
+
   @@index([tenantId])
   @@index([folderRef])
   @@index([accessKey])
+  @@index([accessCode])
+  @@index([patientPhone])
   @@map("documents")
 }
 
@@ -184,6 +326,21 @@ model OtpStore {
 
   @@index([tokenSignature])
   @@map("otp_store")
+}
+
+// Patient Portal Authentication Sessions
+model PatientSession {
+  id          String   @id @default(uuid())
+  phoneNumber String   @map("phone_number")
+  tenantId    String   @map("tenant_id")
+  otpHash     String   @map("otp_hash")
+  expiresAt   DateTime @map("expires_at")
+  verified    Boolean  @default(false)
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([phoneNumber, tenantId])
+  @@map("patient_sessions")
 }
 
 model AuditLog {
@@ -215,4 +372,179 @@ model SystemConfig {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_configs")
+}
+
+model PartnerRequest {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  laboratoryName  String  @map("laboratory_name")
+  contactName     String  @map("contact_name")
+  email           String
+  phone           String
+  city            String
+  estimatedVolume String? @map("estimated_volume")
+  message         String? @db.Text
+
+  status    String @default("PENDING") // PENDING, CONTACTED, CONVERTED, REJECTED
+  notes     String? @db.Text // Internal notes from sales team
+
+  @@map("partner_requests")
+}
+
+// License Management for Feature Activation
+model License {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  code      String        @unique  // Format: AUTO-XXXX-XXXX
+  feature   String                 // e.g., "AUTO_SYNC"
+  status    LicenseStatus @default(AVAILABLE)
+  
+  // Tracking
+  generatedBy    String  @map("generated_by")  // Admin user ID who generated
+  usedByTenantId String? @map("used_by_tenant_id")
+  usedByTenant   Tenant? @relation(fields: [usedByTenantId], references: [id])
+  usedAt         DateTime? @map("used_at")
+  
+  @@map("licenses")
+}
+
+// Critical Value Alert Rules
+model CriticalRule {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Tenant Relation
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Rule Configuration
+  name           String
+  keywords       String[]           // e.g., ["VIH", "Positif"]
+  mustContainAll Boolean @default(true) @map("must_contain_all")
+  alertMessage   String  @map("alert_message") @db.Text
+  isActive       Boolean @default(true) @map("is_active")
+
+  @@index([tenantId, isActive])
+  @@map("critical_rules")
+}
+
+// Mobile Money Payment Transactions
+model Transaction {
+  id           String            @id @default(uuid())
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  // Tenant Relation
+  tenantId     String            @map("tenant_id")
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+
+  // Document Relation
+  documentId   String            @map("document_id")
+  document     Document          @relation(fields: [documentId], references: [id])
+
+  // Transaction Details
+  amount       Float
+  currency     String            @default("XAF")  // CFA Franc
+  provider     String            // 'MOMO' | 'OM'
+  externalRef  String?           @map("external_ref")  // Campay reference
+  phoneNumber  String            @map("phone_number")  // Payer phone
+  status       TransactionStatus @default(PENDING)
+
+  @@index([tenantId])
+  @@index([documentId])
+  @@index([externalRef])
+  @@map("transactions")
+}
+
+// Appointment Booking
+model Appointment {
+  id          String            @id @default(uuid())
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  // Tenant Relation
+  tenantId    String            @map("tenant_id")
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+
+  // Appointment Details
+  patientName  String           @map("patient_name")
+  patientPhone String           @map("patient_phone")
+  patientEmail String?          @map("patient_email")  // Optional for email confirmations
+  type         AppointmentType
+  date         DateTime         // Scheduled slot datetime
+  address      String?          @db.Text  // Required for HOME_SAMPLING
+  notes        String?          @db.Text  // "A jeun", "Diabétique", etc.
+  status       AppointmentStatus @default(PENDING)
+
+  // Reminder tracking
+  reminderDayBeforeSent   DateTime? @map("reminder_day_before_sent")
+  reminderHoursBeforeSent DateTime? @map("reminder_hours_before_sent")
+
+  // History / audit trail
+  history  AppointmentHistory[]
+
+  @@index([tenantId, date])
+  @@index([tenantId, status])
+  @@map("appointments")
+}
+
+// Blocked slots for closures, holidays, etc.
+model BlockedSlot {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  date      DateTime // The date that is blocked
+  allDay    Boolean  @default(true) @map("all_day") // If false, use startTime/endTime
+  startTime String?  @map("start_time") // e.g. "08:00"
+  endTime   String?  @map("end_time")   // e.g. "12:00"
+  reason    String?  // e.g. "Congés", "Jour férié", "Formation"
+
+  @@index([tenantId, date])
+  @@map("blocked_slots")
+}
+
+// Appointment modification history / audit trail
+model AppointmentHistory {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  appointmentId String      @map("appointment_id")
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  action        String      // CREATED, STATUS_CHANGED, UPDATED, CANCELLED
+  oldStatus     String?     @map("old_status")
+  newStatus     String?     @map("new_status")
+  changedBy     String?     @map("changed_by")  // User ID or "SYSTEM" or "PATIENT"
+  changedByName String?     @map("changed_by_name")  // Human-readable name
+  details       String?     @db.Text  // JSON or text description of changes
+  ipAddress     String?     @map("ip_address")
+
+  @@index([appointmentId])
+  @@map("appointment_history")
+}
+
+// Integration API Logs (for LIS/HL7 ingestion tracking)
+model IntegrationLog {
+  id           String            @id @default(uuid())
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  tenantId     String            @map("tenant_id")
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+
+  format       String            // "JSON" | "HL7"
+  payload      String            @db.Text  // Raw data received
+  status       IntegrationStatus
+  errorMessage String?           @db.Text @map("error_message")
+  documentId   String?           @map("document_id")  // Created document (if successful)
+  patientPhone String?           @map("patient_phone")  // Extracted phone
+
+  @@index([tenantId, createdAt])
+  @@map("integration_logs")
 }
