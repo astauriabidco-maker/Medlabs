@@ -52,7 +52,7 @@ export function GlobalUsers() {
     };
 
     const fetchTenants = async () => {
-        const res = await api.get('/tenants');
+        const res = await api.get('/api/tenants');
         if (res.ok) setTenants(await res.json());
     };
 
@@ -74,7 +74,7 @@ export function GlobalUsers() {
                 return addToast(t('errors.required'), 'error');
             }
 
-            const res = await api.post('/admin/users', payload);
+            const res = await api.post('/api/admin/users', payload);
             if (!res.ok) throw new Error((await res.json()).message);
 
             addToast(t('common.success'), 'success');

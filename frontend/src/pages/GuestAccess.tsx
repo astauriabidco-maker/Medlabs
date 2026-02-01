@@ -1,13 +1,12 @@
 import * as React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui-basic';
-import { OtpInput } from '@/components/OtpInput';
-import { Shield, Loader2, CheckCircle, AlertTriangle, Download, FileText } from 'lucide-react';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@/components/ui-basic';
+import { Shield, Loader2, CheckCircle, AlertTriangle, Download, FileText, Hash, Lock, Wallet, Smartphone } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:3005';
 
-type WizardState = 'loading' | 'challenge' | 'otp' | 'dob' | 'success' | 'error';
+type WizardState = 'loading' | 'accessCode' | 'paywall' | 'paying' | 'success' | 'error';
 
 interface ErrorInfo {
     title: string;
@@ -20,13 +19,15 @@ export function GuestAccess() {
     const token = searchParams.get('token');
 
     const [state, setState] = React.useState<WizardState>('loading');
-    const [maskedPhone, setMaskedPhone] = React.useState<string>('');
-    const [otp, setOtp] = React.useState('');
-    const [dob, setDob] = React.useState('');
+    const [accessCode, setAccessCode] = React.useState('');
     const [downloadUrl, setDownloadUrl] = React.useState<string>('');
     const [error, setError] = React.useState<ErrorInfo | null>(null);
     const [isLoading, setIsLoading] = React.useState(false);
-    const [resendTimer, setResendTimer] = React.useState(60);
+
+    // Payment state
+    const [documentId, setDocumentId] = React.useState<string>('');
+    const [paymentAmount, setPaymentAmount] = React.useState<number>(0);
+    const [paymentReference, setPaymentReference] = React.useState<string>('');
 
     // Detect mobile
     const isMobile = React.useMemo(() => {
@@ -40,31 +41,23 @@ export function GuestAccess() {
             setState('error');
             return;
         }
-        setState('challenge');
+        setState('accessCode');
     }, [token, t]);
 
-    // Timer Logic
-    React.useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (state === 'otp' && resendTimer > 0) {
-            interval = setInterval(() => {
-                setResendTimer((prev) => prev - 1);
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [state, resendTimer]);
+    const handleVerifyCode = async () => {
+        if (accessCode.length < 4) return;
 
-    const handleChallenge = async () => {
         setIsLoading(true);
-        setResendTimer(60); // Reset timer on new challenge
+        setError(null);
+
         try {
-            const res = await fetch(`${API_BASE}/auth/guest/challenge`, {
+            const res = await fetch(`${API_BASE}/auth/guest/verify-code`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token }),
+                body: JSON.stringify({ token, accessCode: accessCode.trim() }),
             });
 
-            // Check for anonymized document (archived)
+            // Check for archived document
             if (res.status === 410) {
                 const data = await res.json().catch(() => ({}));
                 if (data.isAnonymized) {
@@ -80,93 +73,114 @@ export function GuestAccess() {
             }
 
             if (res.status === 401) {
-                setError({ title: t('guest.error.expired'), message: t('guest.error.archivedDesc') }); // Use similar logic for expired
+                setError({ title: t('guest.error.expired'), message: t('guest.error.expiredDesc') });
                 setState('error');
-                return;
-            }
-
-            if (!res.ok) {
-                throw new Error('Failed to send code');
-            }
-
-            const data = await res.json();
-            setMaskedPhone(data.message?.match(/\+\d+\*+\d+/)?.[0] || '***');
-            setState('otp');
-        } catch {
-            setError({ title: t('guest.error.title'), message: t('errors.failed') });
-            setState('error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleVerify = async () => {
-        if (otp.length !== 6) return;
-
-        setIsLoading(true);
-        try {
-            const res = await fetch(`${API_BASE}/auth/guest/verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, code: otp }),
-            });
-
-            if (res.status === 401) {
-                setError({ title: t('guest.error.verifyFailed'), message: t('guest.error.verifyFailed') });
-                setOtp('');
-                return;
-            }
-
-            if (!res.ok) {
-                throw new Error('Verification failed');
-            }
-
-            const data = await res.json();
-            setDownloadUrl(data.downloadUrl);
-            setState('success');
-        } catch {
-            setError({ title: t('guest.error.verifyFailed'), message: t('errors.failed') });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleVerifyFallback = async () => {
-        if (!dob) return;
-
-        setIsLoading(true);
-        try {
-            const res = await fetch(`${API_BASE}/auth/guest/verify-fallback`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, dob }),
-            });
-
-            if (res.status === 410) {
-                window.location.href = '/expired';
                 return;
             }
 
             if (res.status === 403) {
-                setError({ title: t('guest.error.verifyFailed'), message: t('guest.error.verifyFailed') });
-                setDob('');
-                setState('error');
+                setError({ title: t('guest.accessCode.invalid'), message: t('guest.accessCode.invalidDesc') });
+                setAccessCode('');
                 return;
             }
 
             if (!res.ok) {
-                const errData = await res.json();
+                const errData = await res.json().catch(() => ({}));
                 throw new Error(errData.message || 'Verification failed');
             }
 
             const data = await res.json();
+
+            // Check if payment is required
+            if (data.paymentStatus === 'UNPAID' && data.price > 0) {
+                setDocumentId(data.documentId);
+                setPaymentAmount(data.price);
+                setState('paywall');
+                return;
+            }
+
             setDownloadUrl(data.downloadUrl);
             setState('success');
         } catch (err: any) {
             setError({ title: t('guest.error.title'), message: err.message || t('errors.failed') });
-            setState('error');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Handle payment initiation
+    const handlePayment = async () => {
+        setIsLoading(true);
+        setError(null);
+        setState('paying');
+
+        try {
+            const res = await fetch(`${API_BASE}/payment/initiate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documentId }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || 'Payment initiation failed');
+            }
+
+            const data = await res.json();
+            setPaymentReference(data.reference);
+
+            // Poll for payment status
+            pollPaymentStatus(data.reference);
+        } catch (err: any) {
+            setError({ title: t('guest.payment.error', 'Erreur de paiement'), message: err.message });
+            setState('paywall');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Poll payment status
+    const pollPaymentStatus = async (reference: string) => {
+        const maxAttempts = 30; // 5 minutes with 10s intervals
+        let attempts = 0;
+
+        const checkStatus = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/payment/status/${documentId}`);
+                const data = await res.json();
+
+                if (data.paymentStatus === 'PAID') {
+                    // Re-verify to get download URL
+                    const verifyRes = await fetch(`${API_BASE}/auth/guest/verify-code`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token, accessCode: accessCode.trim() }),
+                    });
+                    const verifyData = await verifyRes.json();
+                    setDownloadUrl(verifyData.downloadUrl);
+                    setState('success');
+                    return;
+                }
+
+                attempts++;
+                if (attempts < maxAttempts) {
+                    setTimeout(checkStatus, 10000); // Check every 10 seconds
+                } else {
+                    setError({ title: 'Timeout', message: t('guest.payment.timeout', 'Le délai d\'attente du paiement a expiré') });
+                    setState('paywall');
+                }
+            } catch (err) {
+                console.error('Payment status check failed:', err);
+            }
+        };
+
+        checkStatus();
+    };
+
+    // Handle Enter key
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && accessCode.length >= 4) {
+            handleVerifyCode();
         }
     };
 
@@ -198,91 +212,75 @@ export function GuestAccess() {
         );
     }
 
-    if (state === 'challenge') {
+    if (state === 'accessCode') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                        <Shield className="w-16 h-16 text-primary mx-auto mb-4" />
-                        <CardTitle className="text-2xl">{t('guest.challenge.title')}</CardTitle>
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                <Card className="w-full max-w-md shadow-xl">
+                    <CardHeader className="text-center pb-4">
+                        <div className="bg-gradient-to-br from-blue-600 to-indigo-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <Hash className="w-10 h-10 text-white" />
+                        </div>
+                        <CardTitle className="text-2xl font-bold text-slate-800">
+                            {t('guest.accessCode.title')}
+                        </CardTitle>
+                        <p className="text-muted-foreground mt-2">
+                            {t('guest.accessCode.subtitle')}
+                        </p>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <p className="text-center text-muted-foreground text-lg">
-                            {t('guest.challenge.subtitle')}
-                        </p>
-                        <Button
-                            onClick={handleChallenge}
-                            disabled={isLoading}
-                            className="w-full h-14 text-lg font-semibold"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                            ) : (
-                                <Shield className="w-5 h-5 mr-2" />
-                            )}
-                            {t('guest.challenge.submit')}
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    if (state === 'otp') {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white p-4">
-                <Card className="w-full max-w-md">
-                    <CardHeader className="text-center">
-                        <FileText className="w-16 h-16 text-primary mx-auto mb-4" />
-                        <CardTitle className="text-xl">{t('guest.otp.title')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <p className="text-center text-muted-foreground">
-                            {t('guest.otp.sentTo')} <span className="font-semibold">{maskedPhone}</span>
-                        </p>
-
-                        <OtpInput value={otp} onChange={setOtp} disabled={isLoading} />
-
+                        {/* Error display */}
                         {error && (
-                            <p className="text-center text-destructive text-sm">{error.message}</p>
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-medium text-red-700">{error.title}</p>
+                                    <p className="text-sm text-red-600">{error.message}</p>
+                                </div>
+                            </div>
                         )}
 
+                        {/* Access Code Input */}
+                        <div className="space-y-2">
+                            <Label htmlFor="accessCode" className="text-sm font-medium">
+                                {t('guest.accessCode.label')}
+                            </Label>
+                            <Input
+                                id="accessCode"
+                                value={accessCode}
+                                onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                                onKeyPress={handleKeyPress}
+                                placeholder="X4-92"
+                                className="text-center text-2xl font-mono tracking-wider h-14 uppercase"
+                                autoFocus
+                                autoComplete="off"
+                            />
+                            <p className="text-xs text-muted-foreground text-center">
+                                {t('guest.accessCode.hint')}
+                            </p>
+                        </div>
+
                         <Button
-                            onClick={handleVerify}
-                            disabled={otp.length !== 6 || isLoading}
-                            className="w-full h-14 text-lg font-semibold"
+                            onClick={handleVerifyCode}
+                            disabled={isLoading || accessCode.length < 4}
+                            className="w-full h-12 text-base font-semibold"
                         >
                             {isLoading ? (
-                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                <>
+                                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                    {t('common.loading')}
+                                </>
                             ) : (
-                                <CheckCircle className="w-5 h-5 mr-2" />
+                                <>
+                                    <Shield className="w-5 h-5 mr-2" />
+                                    {t('guest.accessCode.submit')}
+                                </>
                             )}
-                            {t('guest.otp.submit')}
                         </Button>
 
-                        <div className="text-center space-y-3 pt-2">
-                            <p className="text-sm text-muted-foreground">
-                                {resendTimer > 0 ? (
-                                    <span>{t('guest.otp.resendIn', { seconds: resendTimer })}</span>
-                                ) : (
-                                    <button
-                                        onClick={handleChallenge}
-                                        className="text-primary hover:underline font-medium"
-                                        disabled={isLoading}
-                                    >
-                                        {t('guest.otp.resendNow')}
-                                    </button>
-                                )}
-                            </p>
-
-                            {resendTimer === 0 && (
-                                <button
-                                    onClick={() => setState('dob')}
-                                    className="text-sm text-muted-foreground hover:text-gray-900 underline"
-                                >
-                                    {t('guest.otp.trouble')}
-                                </button>
-                            )}
+                        {/* Help text */}
+                        <div className="text-center text-sm text-muted-foreground border-t pt-4">
+                            <p>{t('guest.accessCode.lostCode')}</p>
+                            <p className="font-medium text-primary">{t('guest.accessCode.contactLab')}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -290,95 +288,144 @@ export function GuestAccess() {
         );
     }
 
-    if (state === 'dob') {
+    // Paywall state - payment required
+    if (state === 'paywall' || state === 'paying') {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white p-4">
-                <Card className="w-full max-w-md">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-100 p-4">
+                <Card className="w-full max-w-md shadow-xl">
+                    <CardHeader className="text-center pb-4">
+                        <div className="bg-gradient-to-br from-orange-500 to-amber-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <Lock className="w-10 h-10 text-white" />
+                        </div>
+                        <CardTitle className="text-2xl font-bold text-slate-800">
+                            {t('guest.payment.title', 'Résultat Verrouillé')}
+                        </CardTitle>
+                        <p className="text-muted-foreground mt-2">
+                            {t('guest.payment.subtitle', 'Un paiement est requis pour accéder à ce résultat')}
+                        </p>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-medium text-red-700">{error.title}</p>
+                                    <p className="text-sm text-red-600">{error.message}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Amount Display */}
+                        <div className="bg-white border-2 border-orange-200 rounded-xl p-6 text-center">
+                            <Wallet className="w-12 h-12 text-orange-500 mx-auto mb-3" />
+                            <p className="text-sm text-muted-foreground mb-1">
+                                {t('guest.payment.amountLabel', 'Montant à payer')}
+                            </p>
+                            <p className="text-4xl font-bold text-orange-600">
+                                {paymentAmount.toLocaleString()} <span className="text-lg">FCFA</span>
+                            </p>
+                        </div>
+
+                        {state === 'paying' ? (
+                            <div className="text-center py-6">
+                                <Loader2 className="w-10 h-10 animate-spin text-orange-500 mx-auto mb-4" />
+                                <p className="font-medium text-slate-700">
+                                    {t('guest.payment.waiting', 'En attente de votre paiement...')}
+                                </p>
+                                <p className="text-sm text-muted-foreground mt-2">
+                                    {t('guest.payment.ussdHint', 'Validez la demande de paiement sur votre téléphone')}
+                                </p>
+                                {paymentReference && (
+                                    <p className="text-xs text-muted-foreground mt-4">
+                                        Réf: {paymentReference}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <Button
+                                    onClick={handlePayment}
+                                    disabled={isLoading}
+                                    className="w-full h-14 text-base font-semibold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
+                                >
+                                    <Smartphone className="w-5 h-5 mr-2" />
+                                    {t('guest.payment.payButton', 'Payer par Mobile Money')}
+                                </Button>
+
+                                {/* Provider logos */}
+                                <div className="flex justify-center gap-6 pt-2">
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center text-white font-bold text-sm">MTN</div>
+                                        <span className="text-xs text-muted-foreground mt-1">MoMo</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white font-bold text-sm">OM</div>
+                                        <span className="text-xs text-muted-foreground mt-1">Orange</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        <div className="text-center text-sm text-muted-foreground border-t pt-4">
+                            <p>{t('guest.payment.securePayment', 'Paiement sécurisé via Campay')}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    // Success state
+    if (state === 'success') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100 p-4">
+                <Card className="w-full max-w-md shadow-xl">
                     <CardHeader className="text-center">
-                        <Shield className="w-16 h-16 text-primary mx-auto mb-4" />
-                        <CardTitle className="text-xl">{t('guest.dob.title')}</CardTitle>
+                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <CheckCircle className="w-12 h-12 text-white" />
+                        </div>
+                        <CardTitle className="text-2xl text-green-700">{t('guest.success.title')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <p className="text-center text-muted-foreground">
-                            {t('guest.dob.subtitle')}
+                            {t('guest.success.subtitle')}
                         </p>
 
-                        <div className="space-y-2">
-                            <input
-                                type="date"
-                                className="w-full h-12 text-center text-lg border rounded-lg"
-                                value={dob}
-                                onChange={(e) => setDob(e.target.value)}
-                                disabled={isLoading}
-                            />
+                        {/* Download Preview */}
+                        <div className="bg-white border-2 border-green-200 rounded-xl p-6 text-center">
+                            <FileText className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                            <p className="font-medium text-slate-700">Résultat d'analyse</p>
+                            <p className="text-sm text-muted-foreground">PDF sécurisé</p>
                         </div>
 
-                        <Button
-                            onClick={handleVerifyFallback}
-                            disabled={!dob || isLoading}
-                            className="w-full h-14 text-lg font-semibold"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                            ) : (
-                                <CheckCircle className="w-5 h-5 mr-2" />
-                            )}
-                            {t('guest.dob.submit')}
-                        </Button>
-
-                        <button
-                            onClick={() => setState('otp')}
-                            className="w-full text-sm text-muted-foreground hover:text-gray-900"
-                        >
-                            {t('guest.dob.back')}
-                        </button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    if (state === 'success') {
-        return (
-            <div className="min-h-screen flex flex-col bg-white">
-                <header className="p-4 border-b text-center">
-                    <h1 className="text-xl font-semibold flex items-center justify-center gap-2">
-                        <CheckCircle className="w-6 h-6 text-green-500" />
-                        {t('guest.success.title')}
-                    </h1>
-                </header>
-
-                {isMobile ? (
-                    <div className="flex-1 flex items-center justify-center p-4">
-                        <Card className="w-full max-w-md">
-                            <CardContent className="pt-6 space-y-4">
-                                <FileText className="w-20 h-20 text-primary mx-auto" />
-                                <p className="text-center text-muted-foreground">
-                                    {t('guest.success.ready')}
-                                </p>
-                                <a
-                                    href={downloadUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block"
-                                >
-                                    <Button className="w-full h-14 text-lg font-semibold">
+                        {isMobile ? (
+                            <a
+                                href={downloadUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                            >
+                                <Button className="w-full h-14 text-lg font-semibold bg-green-600 hover:bg-green-700">
+                                    <Download className="w-6 h-6 mr-2" />
+                                    {t('guest.success.download')}
+                                </Button>
+                            </a>
+                        ) : (
+                            <div className="space-y-3">
+                                <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="block">
+                                    <Button className="w-full h-12 bg-green-600 hover:bg-green-700">
                                         <Download className="w-5 h-5 mr-2" />
                                         {t('guest.success.download')}
                                     </Button>
                                 </a>
-                            </CardContent>
-                        </Card>
-                    </div>
-                ) : (
-                    <div className="flex-1 p-4">
-                        <iframe
-                            src={downloadUrl}
-                            className="w-full h-full min-h-[600px] rounded-lg border"
-                            title={t('guest.success.title')}
-                        />
-                    </div>
-                )}
+                            </div>
+                        )}
+
+                        <p className="text-xs text-center text-muted-foreground">
+                            {t('guest.success.linkExpiry')}
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

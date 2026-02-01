@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { UploadCloud, FileCheck, AlertTriangle, Loader2, X, Sparkles } from 'lucide-react';
+import { UploadCloud, FileCheck, AlertTriangle, Loader2, X, Sparkles, Lock, Wallet, Stethoscope } from 'lucide-react';
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardContent } from './ui-basic';
 import { useTranslation } from 'react-i18next';
+import { AccessCodeModal } from './AccessCodeModal';
 import * as pdfjsLib from 'pdfjs-dist';
 import { extractPdfData, ExtractedData } from '@/lib/pdf-extractor';
 
@@ -16,6 +17,9 @@ interface FormData {
     dob: string;
     email: string;
     phone: string;
+    isBlocked: boolean;
+    price: string;
+    prescriberName: string;  // Médecin prescripteur (for BI Dashboard)
 }
 
 export function SmartUploadForm() {
@@ -34,8 +38,15 @@ export function SmartUploadForm() {
         lastName: '',
         dob: '',
         email: '',
-        phone: ''
+        phone: '',
+        isBlocked: false,
+        price: '',
+        prescriberName: ''
     });
+
+    // Access Code Modal state
+    const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
+    const [accessCode, setAccessCode] = useState('');
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -65,6 +76,7 @@ export function SmartUploadForm() {
                     lastName: extracted.patientLastName || prev.lastName,
                     phone: extracted.patientPhone || prev.phone,
                     folderRef: extracted.folderRef || prev.folderRef,
+                    prescriberName: extracted.prescriberName || prev.prescriberName,
                 }));
             }
 
@@ -180,9 +192,20 @@ export function SmartUploadForm() {
             formData.append('patientDob', form.dob); // Fallback
         }
 
+        // Payment/Paywall data
+        if (form.isBlocked && form.price) {
+            formData.append('price', form.price);
+            formData.append('paymentStatus', 'UNPAID');
+        }
+
+        // BI Dashboard: Prescriber tracking
+        if (form.prescriberName) {
+            formData.append('prescriberName', form.prescriberName);
+        }
+
         try {
             // Mock API call
-            const response = await fetch('http://localhost:3001/results', {
+            const response = await fetch('/api/results', {
                 method: 'POST',
                 body: formData,
             });
@@ -190,6 +213,14 @@ export function SmartUploadForm() {
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData.message || t('errors.upload_failed'));
+            }
+
+            const data = await response.json();
+
+            // Show access code modal if code is returned
+            if (data.accessCode) {
+                setAccessCode(data.accessCode);
+                setShowAccessCodeModal(true);
             }
 
             setSuccess(true);
@@ -200,7 +231,10 @@ export function SmartUploadForm() {
                 lastName: '',
                 dob: '',
                 email: '',
-                phone: ''
+                phone: '',
+                isBlocked: false,
+                price: '',
+                prescriberName: ''
             });
 
         } catch (err: any) {
@@ -374,6 +408,59 @@ export function SmartUploadForm() {
                         </div>
                     </div>
 
+                    {/* Prescriber Name (BI Dashboard) */}
+                    <div className="space-y-2">
+                        <Label htmlFor="prescriberName" className="flex items-center gap-2">
+                            <Stethoscope className="w-4 h-4 text-purple-500" />
+                            {t('upload.prescriberName', 'Médecin Prescripteur')}
+                            <span className="text-xs text-gray-400 font-normal">(Facultatif - pour statistiques)</span>
+                        </Label>
+                        <Input
+                            id="prescriberName"
+                            value={form.prescriberName}
+                            onChange={e => setForm({ ...form, prescriberName: e.target.value })}
+                            placeholder="Ex: Dr. Tientcheu, Dr. Mbarga"
+                        />
+                    </div>
+
+                    {/* Payment Paywall Section */}
+                    <div className="border-t pt-4 mt-4">
+                        <div className="flex items-center gap-3 mb-3">
+                            <input
+                                type="checkbox"
+                                id="isBlocked"
+                                checked={form.isBlocked}
+                                onChange={e => setForm({ ...form, isBlocked: e.target.checked })}
+                                className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
+                            />
+                            <label htmlFor="isBlocked" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                <Lock className="w-4 h-4 text-orange-500" />
+                                <span>{t('upload.isBlocked', 'Résultat bloqué (Impayé)')}</span>
+                            </label>
+                        </div>
+                        {form.isBlocked && (
+                            <div className="pl-7 space-y-2">
+                                <Label htmlFor="price" className="flex items-center gap-2">
+                                    <Wallet className="w-4 h-4 text-green-600" />
+                                    {t('upload.price', 'Montant restant (FCFA)')} *
+                                </Label>
+                                <Input
+                                    id="price"
+                                    type="number"
+                                    min="0"
+                                    required={form.isBlocked}
+                                    value={form.price}
+                                    onChange={e => setForm({ ...form, price: e.target.value })}
+                                    placeholder="Ex: 15000"
+                                    className="max-w-xs"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    {t('upload.priceHint', 'Le patient devra payer ce montant par Mobile Money pour accéder au résultat')}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="pt-4">
                         <Button type="submit" className="w-full" disabled={loading || !file || !validatePhone(form.phone) || !form.dob}>
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -382,6 +469,16 @@ export function SmartUploadForm() {
                     </div>
                 </form>
             </CardContent>
+
+            {/* Access Code Modal */}
+            <AccessCodeModal
+                isOpen={showAccessCodeModal}
+                accessCode={accessCode}
+                patientName={`${form.firstName} ${form.lastName}`.trim() || 'Patient'}
+                folderRef={form.folderRef || 'N/A'}
+                onClose={() => setShowAccessCodeModal(false)}
+            />
         </Card>
     );
 }
+

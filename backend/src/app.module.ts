@@ -19,6 +19,16 @@ import { TenantsModule } from './tenants/tenants.module';
 import { AdminUsersModule } from './admin/users/admin-users.module';
 import { AuditModule } from './audit/audit.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { PartnerRequestsModule } from './partner-requests/partner-requests.module';
+import { SharedModule } from './shared/shared.module';
+import { IntegrationsModule } from './integrations/integrations.module';
+import { SyncModule } from './sync/sync.module';
+import { PatientModule } from './patient/patient.module';
+import { AnalysisModule } from './analysis/analysis.module';
+import { PaymentModule } from './payment/payment.module';
+import { AppointmentsModule } from './appointments/appointments.module';
+import { IntegrationModule } from './integration/integration.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -41,6 +51,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
       },
     ]),
 
+    SharedModule,
     DynamicConfigModule,
     StorageModule,
     AuthModule,
@@ -51,6 +62,15 @@ import { AnalyticsModule } from './analytics/analytics.module';
     AdminUsersModule,
     AuditModule,
     AnalyticsModule,
+    PartnerRequestsModule,
+    IntegrationsModule,
+    SyncModule,
+    PatientModule,
+    AnalysisModule,
+    PaymentModule,
+    AppointmentsModule,
+    IntegrationModule,
+    StatsModule,
   ],
   controllers: [AppController, PlatformConfigController],
   providers: [

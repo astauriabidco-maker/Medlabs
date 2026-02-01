@@ -297,4 +297,106 @@ export class PatientAuthController {
             throw new BadRequestException('Could not generate download link');
         }
     }
+
+    /**
+     * NEW: Verify using physical access code from receipt
+     * This replaces OTP/DOB verification with a simple code printed on the patient's receipt
+     */
+    @Post('verify-code')
+    @HttpCode(HttpStatus.OK)
+    async verifyCode(@Body() body: { token: string; accessCode: string }) {
+        const { token, accessCode } = body;
+        if (!token || !accessCode) throw new BadRequestException('Token and access code are required');
+
+        // 1. Verify JWT
+        let payload: any;
+        try {
+            payload = this.jwtService.verify(token, {
+                secret: process.env.PATIENT_JWT_SECRET || 'dev_secret_key_123',
+            });
+        } catch {
+            throw new UnauthorizedException('Invalid or expired link');
+        }
+
+        if (payload.type !== 'guest_access') {
+            throw new UnauthorizedException('Invalid token type');
+        }
+
+        const documentId = payload.sub;
+        const document = await this.prisma.document.findUnique({ where: { id: documentId } });
+
+        if (!document) throw new NotFoundException('Document not found');
+
+        if (document.status === 'EXPIRED') {
+            throw new HttpException('Document has expired due to data retention policy', HttpStatus.GONE);
+        }
+
+        // Check if document is anonymized
+        if (document.isAnonymized) {
+            throw new HttpException(
+                { message: 'Document has been archived', isAnonymized: true },
+                HttpStatus.GONE
+            );
+        }
+
+        // 2. Verify Access Code
+        if (!document.accessCode) {
+            throw new BadRequestException('No access code available for this document. Please contact the laboratory.');
+        }
+
+        // Normalize comparison (case-insensitive, trim whitespace)
+        const normalizedInput = accessCode.trim().toUpperCase();
+        const normalizedStored = document.accessCode.trim().toUpperCase();
+
+        if (normalizedInput !== normalizedStored) {
+            throw new ForbiddenException('Invalid access code. Please check the code on your receipt.');
+        }
+
+        // Check payment status - block access if unpaid
+        const paymentStatus = (document as any).paymentStatus;
+        const price = (document as any).price;
+
+        if (paymentStatus === 'UNPAID' && price > 0) {
+            // Return payment required response
+            return {
+                status: 'payment_required',
+                paymentStatus: 'UNPAID',
+                price,
+                documentId: document.id,
+            };
+        }
+
+        // 3. Success - Audit & Generate Link
+        await this.prisma.auditLog.create({
+            data: {
+                action: 'VIEW_DOCUMENT',
+                tenantId: document.tenantId,
+                resourceId: document.id,
+                actorId: 'PATIENT',
+                description: 'Patient accessed document via physical access code',
+            }
+        });
+
+        // Update Document Status
+        if (document.status !== 'OPENED') {
+            await this.prisma.document.update({
+                where: { id: documentId },
+                data: { status: 'OPENED' }
+            });
+        }
+
+        // Generate S3 Presigned URL
+        const command = new GetObjectCommand({
+            Bucket: process.env.AWS_S3_BUCKET_NAME || 'medlab-documents',
+            Key: document.fileKey,
+        });
+
+        try {
+            const downloadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 300 });
+            return { downloadUrl, status: 'success' };
+        } catch (error) {
+            console.error(error);
+            throw new BadRequestException('Could not generate download link');
+        }
+    }
 }

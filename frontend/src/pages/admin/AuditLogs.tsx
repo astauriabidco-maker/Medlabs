@@ -19,7 +19,7 @@ export function AuditLogs() {
     const [logs, setLogs] = React.useState<AuditLog[]>([]);
 
     React.useEffect(() => {
-        api.get('/audit-logs').then(res => res.json()).then(setLogs).catch(console.error);
+        api.get('/api/audit-logs').then(res => res.json()).then(setLogs).catch(console.error);
     }, []);
 
     const columns = [

@@ -12,6 +12,8 @@ import { Login } from './pages/auth/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import AnalyticsDashboard from './pages/lab/AnalyticsDashboard';
 import ResultsHistory from './pages/tech/ResultsHistory';
+import PatientLogin from './pages/patient/PatientLogin';
+import PatientDashboard from './pages/patient/PatientDashboard';
 
 function App() {
   return (
@@ -20,6 +22,10 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<SmartUploadForm />} />
         <Route path="/login" element={<Login />} />
+
+        {/* Patient Portal Routes */}
+        <Route path="/patient/:slug/login" element={<PatientLogin />} />
+        <Route path="/patient/:slug/dashboard" element={<PatientDashboard />} />
 
         {/* Protected Dashboard Routes */}
         <Route path="/dashboard/*" element={

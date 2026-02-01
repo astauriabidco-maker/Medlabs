@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import './i18n'; // Initialize i18n
 import { Landing } from './pages/public/Landing.tsx'
+import { BecomePartner } from './pages/public/BecomePartner.tsx'
 import { Login } from './pages/auth/Login.tsx'
 import { ForgotPassword } from './pages/auth/ForgotPassword.tsx'
 import { ResetPassword } from './pages/auth/ResetPassword.tsx'
@@ -27,6 +28,14 @@ import { SmartUploadForm } from './components/SmartUploadForm.tsx'
 
 import AnalyticsDashboard from './pages/lab/AnalyticsDashboard.tsx'
 import { DashboardRedirect } from './components/DashboardRedirect.tsx'
+import PatientLogin from './pages/patient/PatientLogin.tsx'
+import PatientDashboard from './pages/patient/PatientDashboard.tsx'
+import Alerts from './pages/lab/Alerts.tsx'
+import PatientPortal from './pages/lab/PatientPortal.tsx'
+import Appointments from './pages/lab/Appointments.tsx'
+import Integration from './pages/lab/Integration.tsx'
+import BIDashboard from './pages/lab/BIDashboard.tsx'
+import Booking from './pages/public/Booking.tsx'
 
 function DashboardRoutes() {
   return (
@@ -45,6 +54,12 @@ function DashboardRoutes() {
         <Route path="settings" element={<Settings />} />
         <Route path="sms" element={<Settings />} />
         <Route path="api" element={<Settings />} />
+        <Route path="alerts" element={<Alerts />} />
+        <Route path="patient-portal" element={<PatientPortal />} />
+        <Route path="appointments" element={<Appointments />} />
+        <Route path="integration" element={<Integration />} />
+        <Route path="analytics" element={<BIDashboard />} />
+
 
         {/* Technician Routes */}
         <Route path="history" element={<ResultsHistory />} />
@@ -67,6 +82,7 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/become-partner" element={<BecomePartner />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -74,6 +90,13 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/expired" element={<ExpiredDocument />} />
             <Route path="/guest/access" element={<GuestAccess />} />
             <Route path="/dashboard/*" element={<DashboardRoutes />} />
+
+            {/* Patient Portal Routes */}
+            <Route path="/patient/:slug/login" element={<PatientLogin />} />
+            <Route path="/patient/:slug/dashboard" element={<PatientDashboard />} />
+
+            {/* Public Booking Widget */}
+            <Route path="/book/:slug" element={<Booking />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

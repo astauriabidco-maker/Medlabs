@@ -14,6 +14,9 @@
         "sms": "Consommation SMS",
         "api": "Interface API",
         "labSettings": "Paramètres Labo",
+        "alerts": "Alertes Critiques",
+        "patientPortal": "Carnet de Santé",
+        "appointments": "Rendez-vous",
         "upload": "Nouveau Résultat",
         "history": "Historique des Envois",
         "dashboard": "Tableau de Bord",
@@ -87,6 +90,16 @@
         "days": "jours",
         "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?"
     },
+    "accessCode": {
+        "title": "Code de Retrait",
+        "subtitle": "À noter sur le reçu patient",
+        "codeLabel": "CODE D'ACCÈS",
+        "patient": "Patient",
+        "folder": "Dossier",
+        "instruction": "Notez ce code sur le reçu du patient. Il sera nécessaire pour accéder aux résultats en ligne.",
+        "print": "Imprimer Reçu",
+        "done": "Terminé"
+    },
     "errors": {
         "failed": "L'opération a échoué",
         "required": "Ce champ est obligatoire",
@@ -94,6 +107,23 @@
         "preview_failed": "Échec de la génération du lien de prévisualisation",
         "update_failed": "Échec de la mise à jour",
         "invalid_sender_id": "Sender ID invalide (3-11 caractères alphanumériques)"
+    },
+    "integrations": {
+        "title": "Configuration SMS/WhatsApp",
+        "description": "Configurez vos propres identifiants Twilio ou META pour envoyer les notifications.",
+        "provider": "Fournisseur",
+        "accountId": "Account SID / App ID",
+        "authToken": "Token d'authentification",
+        "authTokenHint": "Le token est chiffré avant stockage. Ne sera jamais affiché.",
+        "phoneNumber": "Numéro d'envoi",
+        "channels": "Canaux activés",
+        "saved": "Configuration sauvegardée",
+        "testConnection": "Tester la connexion",
+        "testSuccess": "Connexion réussie",
+        "testFailed": "Échec de connexion",
+        "errors": {
+            "required": "Tous les champs sont requis"
+        }
     },
     "status": {
         "UPLOADED": "Importé",
@@ -151,7 +181,9 @@
             "resend": "Renvoyer SMS",
             "retry": "Réessayer",
             "delete": "Supprimer",
-            "cancel": "Annuler l'envoi"
+            "cancel": "Annuler l'envoi",
+            "resendCode": "Renvoyer Code par SMS",
+            "codeSent": "Code d'accès envoyé par SMS"
         },
         "modals": {
             "resendTitle": "Renvoyer la Notification",
@@ -190,7 +222,9 @@
         "tabs": {
             "general": "Général",
             "api": "Clés API",
-            "sms": "Quota SMS"
+            "sms": "Quota SMS",
+            "integrations": "Intégrations",
+            "modules": "Modules & Licences"
         },
         "general": {
             "name": "Nom du Laboratoire",
@@ -402,9 +436,50 @@
             "saveButton": "Enregistrer les limites"
         }
     },
+    "partner": {
+        "badge": "Rejoignez le réseau",
+        "title": "Devenez Partenaire MedLab",
+        "subtitle": "Offrez à vos patients une expérience moderne et sécurisée pour la réception de leurs résultats médicaux.",
+        "alreadyPartner": "Déjà partenaire ? Se connecter",
+        "benefits": {
+            "security": {
+                "title": "Sécurité HDS",
+                "desc": "Infrastructure conforme aux normes d'Hébergement de Données de Santé avec chiffrement de bout en bout."
+            },
+            "speed": {
+                "title": "Livraison Instantanée",
+                "desc": "Vos patients reçoivent leurs résultats en quelques secondes après validation."
+            },
+            "compliance": {
+                "title": "Conformité Totale",
+                "desc": "Respect du secret médical, traçabilité complète et anonymisation automatique."
+            }
+        },
+        "form": {
+            "title": "Demande de Partenariat",
+            "labName": "Nom du Laboratoire",
+            "contactName": "Nom du Contact",
+            "email": "Email Professionnel",
+            "phone": "Téléphone",
+            "city": "Ville",
+            "volume": "Volume estimé",
+            "volumePlaceholder": "Sélectionner...",
+            "volumePerDay": "résultats/jour",
+            "message": "Message (optionnel)",
+            "messagePlaceholder": "Décrivez vos besoins spécifiques ou posez vos questions...",
+            "submit": "Envoyer ma demande",
+            "privacy": "En soumettant ce formulaire, vous acceptez d'être contacté par notre équipe commerciale."
+        },
+        "success": {
+            "title": "Demande Envoyée !",
+            "message": "Notre équipe commerciale vous contactera dans les 24 heures ouvrées pour discuter de votre projet.",
+            "backHome": "Retour à l'accueil"
+        }
+    },
     "landing": {
         "header": {
-            "login": "Espace Partenaire"
+            "login": "Espace Partenaire",
+            "becomePartner": "Devenir Partenaire"
         },
         "hero": {
             "badge": "Conformité HDS",
@@ -448,5 +523,63 @@
             "desc": "Veuillez contacter le secrétariat de votre laboratoire pour récupérer une version physique."
         },
         "reference": "Réf : LIMITE_RETENTION_HDS"
+    },
+    "guest": {
+        "accessCode": {
+            "title": "Vérification d'identité",
+            "subtitle": "Entrez le code inscrit sur votre reçu papier",
+            "label": "Code de Retrait",
+            "hint": "Le code se trouve sur votre reçu (ex: X4-92)",
+            "submit": "Accéder à mes résultats",
+            "invalid": "Code invalide",
+            "invalidDesc": "Le code saisi ne correspond pas. Vérifiez le code sur votre reçu.",
+            "lostCode": "Vous avez perdu votre reçu ?",
+            "contactLab": "Contactez votre laboratoire"
+        },
+        "error": {
+            "title": "Erreur",
+            "invalidLink": "Ce lien n'est pas valide ou a expiré.",
+            "tryAgain": "Réessayer",
+            "expired": "Lien expiré",
+            "expiredDesc": "Ce lien d'accès a expiré. Veuillez contacter votre laboratoire.",
+            "archived": "Document archivé",
+            "archivedDesc": "Ce document a été archivé conformément à la politique de rétention.",
+            "verifyFailed": "Vérification échouée"
+        },
+        "success": {
+            "title": "Accès autorisé !",
+            "subtitle": "Votre document est prêt à être téléchargé.",
+            "download": "Télécharger le PDF",
+            "linkExpiry": "Ce lien de téléchargement expire dans 5 minutes."
+        }
+    },
+    "modules": {
+        "activate": {
+            "title": "Activer un module",
+            "description": "Saisissez votre code de licence pour activer des fonctionnalités premium",
+            "placeholder": "Ex: SYNC-2026-X",
+            "button": "Activer"
+        },
+        "available": "Modules Disponibles",
+        "activated": "Licence activée avec succès",
+        "activationFailed": "Échec de l'activation",
+        "autoSync": {
+            "title": "Synchronisation Auto",
+            "description": "Synchronisation Windows avec votre SIL. Téléversement automatique des résultats PDF.",
+            "downloadBot": "Télécharger le bot Windows depuis le portail partenaire."
+        },
+        "archive": {
+            "title": "Archivage Long Terme",
+            "description": "Conservation des résultats jusqu'à 5 ans. Idéal pour la conformité réglementaire.",
+            "active": "Rétention étendue active"
+        },
+        "syncEndpoint": "Point de terminaison API",
+        "help": {
+            "title": "Besoin d'une licence ?",
+            "description": "Contactez votre représentant commercial ou visitez le portail partenaire pour obtenir un code de licence."
+        },
+        "errors": {
+            "codeRequired": "Veuillez saisir un code de licence"
+        }
     }
 }

@@ -67,7 +67,7 @@ export default function Dashboard() {
 
     const fetchData = async () => {
         try {
-            const res = await api.get('/analytics/summary');
+            const res = await api.get('/api/analytics/summary');
             if (res.ok) {
                 const json = await res.json();
                 setData(json);
@@ -95,7 +95,7 @@ export default function Dashboard() {
             // BETTER: Use search="FAILED" if search logic searches status? Probably not.
             // Use the "search" param to hack it? No.
             // Let's stick to just fetching recent 10 and showing if any failed.
-            const res = await api.get(`/results?page=1&limit=50`); // Fetch a batch
+            const res = await api.get(`/api/results?page=1&limit=50`); // Fetch a batch
             if (res.ok) {
                 const json = await res.json();
                 const failed = (json.data || []).filter((r: any) => r.status === 'FAILED').slice(0, 5);

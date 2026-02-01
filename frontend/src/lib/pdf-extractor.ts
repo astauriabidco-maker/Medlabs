@@ -13,6 +13,7 @@ export interface ExtractedData {
     patientLastName?: string;
     patientPhone?: string;
     folderRef?: string;
+    prescriberName?: string;  // Médecin prescripteur (for BI Dashboard)
     rawText?: string;
     confidence: 'high' | 'medium' | 'low' | 'none';
 }
@@ -149,6 +150,42 @@ function detectFolderRef(text: string): string | undefined {
 }
 
 /**
+ * Detect prescriber/doctor name from text
+ * Looks for patterns like "Prescrit par:", "Dr.", "Docteur", "Médecin"
+ */
+function detectPrescriber(text: string): string | undefined {
+    const patterns = [
+        // "Prescrit par: Dr. LASTNAME Firstname" or "Prescrit par Dr. XXX"
+        /Prescrit\s+par\s*[:\-]?\s*(?:Dr\.?|Docteur)?\s*([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)*)/i,
+        // "Médecin Prescripteur: Dr. XXX"
+        /M[ée]decin\s+(?:Prescripteur|Traitant)\s*[:\-]?\s*(?:Dr\.?|Docteur)?\s*([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)*)/i,
+        // "Ordonnance du Dr. LASTNAME"
+        /Ordonnance\s+(?:du|de)\s+(?:Dr\.?|Docteur)\s*([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)*)/i,
+        // "Dr. LASTNAME Firstname" (standalone)
+        /\bDr\.?\s+([A-ZÀ-Ÿ]{2,}(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)/,
+        // "Docteur LASTNAME"
+        /\bDocteur\s+([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)*)/i,
+        // "Référé par: XXX"
+        /R[ée]f[ée]r[ée]\s+par\s*[:\-]?\s*(?:Dr\.?|Docteur)?\s*([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)*)/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+            // Clean up and format the name
+            const name = match[1].trim();
+            // Skip if it looks like a patient name (already captured elsewhere)
+            if (name.length >= 3 && name.length <= 50) {
+                // Normalize: "Dr. LASTNAME" format
+                return `Dr. ${name}`;
+            }
+        }
+    }
+
+    return undefined;
+}
+
+/**
  * Calculate confidence level based on extracted data
  */
 function calculateConfidence(data: Partial<ExtractedData>): 'high' | 'medium' | 'low' | 'none' {
@@ -157,6 +194,7 @@ function calculateConfidence(data: Partial<ExtractedData>): 'high' | 'medium' | 
     if (data.patientPhone) score += 2;
     if (data.patientLastName) score += 2;
     if (data.patientFirstName) score += 1;
+    if (data.prescriberName) score += 1;
     if (data.folderRef) score += 1;
 
     if (score >= 5) return 'high';
@@ -181,12 +219,14 @@ export async function extractPdfData(file: File): Promise<ExtractedData> {
         const phone = detectPhone(rawText);
         const name = detectPatientName(rawText);
         const folderRef = detectFolderRef(rawText);
+        const prescriberName = detectPrescriber(rawText);
 
         const extracted: ExtractedData = {
             patientPhone: phone,
             patientFirstName: name.firstName,
             patientLastName: name.lastName,
             folderRef: folderRef,
+            prescriberName: prescriberName,
             rawText: rawText.substring(0, 500), // Keep first 500 chars for debugging
             confidence: 'none',
         };
@@ -198,6 +238,7 @@ export async function extractPdfData(file: File): Promise<ExtractedData> {
             firstName: extracted.patientFirstName,
             lastName: extracted.patientLastName,
             folderRef: extracted.folderRef,
+            prescriberName: extracted.prescriberName,
             confidence: extracted.confidence,
         });
 

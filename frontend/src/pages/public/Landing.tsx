@@ -15,12 +15,20 @@ export function Landing() {
                         <Activity className="w-6 h-6" />
                         <span>MedLab Secure</span>
                     </div>
-                    <Link
-                        to="/login"
-                        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
-                    >
-                        {t('landing.header.login')}
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            to="/become-partner"
+                            className="text-slate-600 hover:text-primary px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            {t('landing.header.becomePartner')}
+                        </Link>
+                        <Link
+                            to="/login"
+                            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                        >
+                            {t('landing.header.login')}
+                        </Link>
+                    </div>
                 </div>
             </header>
 

@@ -4,7 +4,9 @@ import { StorageService } from '../storage/storage.service';
 import { PrismaService } from '../prisma.service';
 import { SmsService } from '../notifications/sms.service';
 import { EmailService } from '../notifications/email.service';
+import { WhatsAppService } from '../notifications/whatsapp.service';
 import { MagicLinkService } from '../auth/magic-link.service';
+import { AnalysisService } from '../analysis/analysis.service';
 import { v4 as uuidv4 } from 'uuid';
 import { AuditAction } from '@prisma/client';
 
@@ -15,8 +17,40 @@ export class ResultsService {
         private readonly storage: StorageService,
         private readonly smsService: SmsService,
         private readonly emailService: EmailService,
+        private readonly whatsAppService: WhatsAppService,
         private readonly magicLinkService: MagicLinkService,
+        private readonly analysisService: AnalysisService,
     ) { }
+
+    /**
+     * Generate a unique short access code for physical receipt
+     * Format: "X4-92" (letter+digit-twodigits)
+     */
+    private async generateAccessCode(tenantId: string): Promise<string> {
+        const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // No I, O to avoid confusion
+        const maxAttempts = 10;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const letter = letters[Math.floor(Math.random() * letters.length)];
+            const digit1 = Math.floor(Math.random() * 10);
+            const digits2 = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+            const code = `${letter}${digit1}-${digits2}`;
+
+            // Check uniqueness among active documents in this tenant
+            const existing = await this.prisma.document.findFirst({
+                where: {
+                    tenantId,
+                    accessCode: code,
+                    status: { notIn: ['EXPIRED'] },
+                },
+            });
+
+            if (!existing) return code;
+        }
+
+        // Fallback: use numeric code
+        return String(Math.floor(Math.random() * 9000) + 1000);
+    }
 
     async create(createResultDto: CreateResultDto, file: Express.Multer.File, tenantId: string, userId: string) {
         if (!file) {
@@ -55,6 +89,9 @@ export class ResultsService {
         const lastName = nameParts.pop() || 'Unknown';
         const firstName = nameParts.join(' ') || 'Unknown';
 
+        // Generate unique access code for physical receipt
+        const accessCode = await this.generateAccessCode(tenantId);
+
         const document = await this.prisma.document.create({
             data: {
                 tenantId: tenantId,
@@ -69,16 +106,23 @@ export class ResultsService {
                 patientDob: new Date(createResultDto.patientDob),
                 uploadedById: userId,
                 expiresAt: expiresAt,
+                accessCode: accessCode,
                 status: 'UPLOADED',
+                prescriberName: createResultDto.prescriberName || null,  // BI Dashboard tracking
             },
         });
 
-        // Trigger Notification
+        // Trigger Notification (WhatsApp first)
         this.notifyPatient(document.id).catch(err => console.error('Failed to notify patient', err));
+
+        // Analyze for critical values (async, non-blocking)
+        this.analysisService.analyzeDocument(document.id, file.buffer)
+            .catch(err => console.error('Critical analysis failed', err));
 
         return {
             message: 'Result uploaded and processed',
             documentId: document.id,
+            accessCode: accessCode, // Return code for receipt printing
         };
     }
 
@@ -114,6 +158,7 @@ export class ResultsService {
                     patientPhone: true,
                     folderRef: true,
                     status: true,
+                    isCritical: true,
                 }
             }),
             this.prisma.document.count({ where }),
@@ -188,15 +233,24 @@ export class ResultsService {
         const patientName = `${doc.patientFirstName} ${doc.patientLastName}`.trim();
         const dateStr = doc.createdAt.toLocaleDateString('fr-FR');
 
-        // 1. Send SMS
-        await this.smsService.sendResultNotification(
+        // 1. Try WhatsApp first (primary channel)
+        const whatsAppSent = await this.whatsAppService.sendResultNotification(
             doc.patientPhone,
             patientName,
-            doc.folderRef,
             magicLink
         );
 
-        // 2. Send Email (if available)
+        // 2. Fallback to SMS if WhatsApp fails
+        if (!whatsAppSent) {
+            await this.smsService.sendResultNotification(
+                doc.patientPhone,
+                patientName,
+                doc.folderRef,
+                magicLink
+            );
+        }
+
+        // 3. Send Email (if available)
         if (doc.patientEmail) {
             await this.emailService.sendResultNotification({
                 to: doc.patientEmail,
@@ -213,6 +267,28 @@ export class ResultsService {
             where: { id: documentId },
             data: { status: 'NOTIFIED' }
         });
+    }
+
+    /**
+     * Send access code via SMS (fallback for lost receipts)
+     */
+    async resendAccessCode(tenantId: string, resultId: string) {
+        const doc = await this.prisma.document.findFirst({
+            where: { id: resultId, tenantId },
+        });
+
+        if (!doc) throw new NotFoundException('Document not found');
+        if (!doc.accessCode) throw new BadRequestException('No access code available for this document');
+
+        const patientName = `${doc.patientFirstName} ${doc.patientLastName}`.trim();
+
+        // Send access code via SMS (not WhatsApp, as per requirement)
+        await this.smsService.sendOtp(doc.patientPhone, doc.accessCode);
+
+        return {
+            message: 'Access code sent via SMS',
+            maskedPhone: doc.patientPhone.slice(0, 7) + '****' + doc.patientPhone.slice(-2),
+        };
     }
 
     async remove(tenantId: string, id: string) {

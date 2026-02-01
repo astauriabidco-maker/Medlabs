@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { DataTable, useToast } from '@/components/ui-dashboard';
-import { Search, Eye, RefreshCw, Trash2, Send, FileText } from 'lucide-react';
+import { Search, Eye, RefreshCw, Trash2, Send, FileText, MessageSquare, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/StatusBadge';
 import { DropdownMenu, DropdownMenuItem } from '@/components/DropdownMenu';
@@ -14,6 +14,7 @@ interface Result {
     patientPhone: string;
     folderRef: string;
     status: 'UPLOADED' | 'NOTIFIED' | 'DELIVERED' | 'OPENED' | 'FAILED' | 'PENDING';
+    isCritical?: boolean;
 }
 
 export default function ResultsHistory() {
@@ -32,7 +33,7 @@ export default function ResultsHistory() {
 
     const fetchResults = async () => {
         try {
-            const res = await api.get(`/results?search=${encodeURIComponent(searchTerm)}`);
+            const res = await api.get(`/api/results?search=${encodeURIComponent(searchTerm)}`);
             if (!res.ok) throw new Error('Failed to fetch');
             const data = await res.json();
             setResults(data.data || []);
@@ -44,7 +45,7 @@ export default function ResultsHistory() {
 
     const handlePreview = async (id: string) => {
         try {
-            const res = await api.get(`/results/${id}/preview`);
+            const res = await api.get(`/api/results/${id}/preview`);
             if (!res.ok) throw new Error('Failed to get preview');
             const { url } = await res.json();
             window.open(url, '_blank');
@@ -56,7 +57,7 @@ export default function ResultsHistory() {
     const handleDelete = async (id: string) => {
         if (!confirm(t('common.warning') + ': ' + t('common.delete') + '?')) return;
         try {
-            const res = await api.delete(`/results/${id}`);
+            const res = await api.delete(`/api/results/${id}`);
             if (!res.ok) throw new Error('Failed to delete');
             addToast(t('common.success'), 'success');
             fetchResults();
@@ -68,10 +69,21 @@ export default function ResultsHistory() {
     const handleResend = async (result: Result) => {
         // Quick resend without changing phone
         try {
-            const res = await api.patch(`/results/${result.id}/resend`, { phone: result.patientPhone });
+            const res = await api.patch(`/api/results/${result.id}/resend`, { phone: result.patientPhone });
             if (!res.ok) throw new Error('Failed');
             addToast(t('history.modals.resentSuccess', { phone: result.patientPhone }), 'success');
             fetchResults();
+        } catch (error) {
+            addToast(t('errors.failed'), 'error');
+        }
+    };
+
+    const handleResendCode = async (result: Result) => {
+        // Send access code via SMS fallback
+        try {
+            const res = await api.post(`/api/results/${result.id}/resend-code`, {});
+            if (!res.ok) throw new Error('Failed');
+            addToast(t('history.actions.codeSent'), 'success');
         } catch (error) {
             addToast(t('errors.failed'), 'error');
         }
@@ -99,10 +111,15 @@ export default function ResultsHistory() {
             key: 'patientName',
             header: t('history.table.patient'),
             render: (row: Result) => (
-                <div>
-                    <div className="font-medium text-slate-900">{row.patientName}</div>
-                    <div className="text-xs text-slate-500">
-                        {row.patientPhone}
+                <div className="flex items-center gap-2">
+                    {row.isCritical && (
+                        <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                    )}
+                    <div>
+                        <div className={`font-medium ${row.isCritical ? 'text-red-700' : 'text-slate-900'}`}>{row.patientName}</div>
+                        <div className="text-xs text-slate-500">
+                            {row.patientPhone}
+                        </div>
                     </div>
                 </div>
             )
@@ -165,9 +182,9 @@ export default function ResultsHistory() {
                                 <RefreshCw className="w-4 h-4 mr-2" />
                                 {t('actions.resend')}
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                <FileText className="w-4 h-4 mr-2" />
-                                {t('results.actions.preview')}
+                            <DropdownMenuItem onClick={() => handleResendCode(row)}>
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                                {t('history.actions.resendCode')}
                             </DropdownMenuItem>
                         </>
                     )}

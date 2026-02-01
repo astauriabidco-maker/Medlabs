@@ -49,6 +49,12 @@ export class ResultsController {
         return this.resultsService.create(createResultDto, file, tenantId, user.id);
     }
 
+    @Post(':id/resend-code')
+    @Roles('TECHNICIAN', 'LAB_ADMIN')
+    resendCode(@User() user: any, @Param('id') id: string) {
+        return this.resultsService.resendAccessCode(user.tenantId, id);
+    }
+
     @Delete(':id')
     @Roles('LAB_ADMIN', 'SUPER_ADMIN')
     remove(@User() user: any, @Param('id') id: string) {

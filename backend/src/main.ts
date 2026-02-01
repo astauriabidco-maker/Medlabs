@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 import helmet from 'helmet';
 import { validateEnvironment } from './config/env.validation';
 
@@ -9,7 +11,15 @@ async function bootstrap() {
   // Validate environment before starting
   validateEnvironment();
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve static files (logos, public uploads)
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+  });
+
+  // Global API prefix
+  app.setGlobalPrefix('api');
 
   // Global Validation Pipe
   app.useGlobalPipes(new ValidationPipe({

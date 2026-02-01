@@ -16,6 +16,11 @@ import {
     Upload,
     User as UserIcon,
     LayoutDashboard,
+    AlertTriangle,
+    Heart,
+    Calendar,
+    Plug,
+    BarChart3,
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
@@ -41,7 +46,12 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
         { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
         { label: 'My Team', translationKey: 'nav.team', path: '/dashboard/team', icon: <Users className="w-5 h-5" /> },
+        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" /> },
+        { label: 'Patient Portal', translationKey: 'nav.patientPortal', path: '/dashboard/patient-portal', icon: <Heart className="w-5 h-5" /> },
+        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" /> },
         { label: 'Lab Settings', translationKey: 'nav.labSettings', path: '/dashboard/settings', icon: <Settings className="w-5 h-5" /> },
+        { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
+        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     ],
     TECHNICIAN: [
         { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },

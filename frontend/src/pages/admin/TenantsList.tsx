@@ -47,7 +47,7 @@ export function TenantsList() {
 
     const fetchTenants = async () => {
         try {
-            const res = await api.get('/tenants');
+            const res = await api.get('/api/tenants');
             if (res.ok) {
                 const data = await res.json();
                 setTenants(data);
@@ -75,7 +75,7 @@ export function TenantsList() {
                 adminPassword: formData.adminPassword,
             };
 
-            const res = await api.post('/tenants', payload);
+            const res = await api.post('/api/tenants', payload);
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.message || 'Failed to create tenant');

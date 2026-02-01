@@ -29,7 +29,7 @@ export function FixContactModal({ open, onClose, result, onSuccess }: FixContact
         if (!result) return;
         setLoading(true);
         try {
-            const res = await api.patch(`/results/${result.id}/resend`, { phone });
+            const res = await api.patch(`/api/results/${result.id}/resend`, { phone });
 
             if (!res.ok) throw new Error('Failed to update and resend');
 

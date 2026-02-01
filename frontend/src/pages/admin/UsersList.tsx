@@ -63,7 +63,7 @@ export function UsersList() {
                 // tenantId is null/undefined for Super Admin
             };
 
-            const res = await api.post('/users', payload);
+            const res = await api.post('/api/users', payload);
             if (!res.ok) throw new Error('Failed to create user');
 
             addToast(t('users.toasts.created'), 'success');

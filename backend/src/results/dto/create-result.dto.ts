@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateResultDto {
     @IsNotEmpty()
@@ -22,4 +22,8 @@ export class CreateResultDto {
     @IsString()
     @IsNotEmpty()
     patientDob: string; // YYYY-MM-DD
+
+    @IsOptional()
+    @IsString()
+    prescriberName?: string;  // Médecin prescripteur (for BI Dashboard)
 }

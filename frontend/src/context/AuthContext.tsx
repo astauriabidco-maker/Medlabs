@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = async (email: string, password: string) => {
         try {
-            const res = await api.post('/auth/login', { email, password });
+            const res = await api.post('/api/auth/login', { email, password });
 
             if (!res.ok) {
                 if (res.status === 401) throw new Error('Invalid credentials');
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const impersonate = async (userId: string) => {
         try {
-            const res = await api.post('/auth/impersonate', { userId });
+            const res = await api.post('/api/auth/impersonate', { userId });
             if (!res.ok) throw new Error('Impersonation failed');
 
             const data = await res.json();
