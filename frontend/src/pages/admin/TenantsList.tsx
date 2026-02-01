@@ -2,7 +2,7 @@ import * as React from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui-basic';
 import { Badge, Modal, DataTable, StatCard, useToast } from '@/components/ui-dashboard';
-import { Plus, Users, Building2, MessageSquare, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Users, Building2, MessageSquare, Edit2, Trash2, Crown, Sparkles, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Tenant {
@@ -18,7 +18,14 @@ interface Tenant {
     rccm?: string;
     contactEmail?: string;
     maxRetentionDays?: number;
+    plan: 'STARTER' | 'PREMIUM' | 'ENTERPRISE';
 }
+
+const PLAN_CONFIG = {
+    STARTER: { label: 'Starter', color: 'bg-slate-100 text-slate-700', icon: Zap },
+    PREMIUM: { label: 'Premium', color: 'bg-purple-100 text-purple-700', icon: Sparkles },
+    ENTERPRISE: { label: 'Enterprise', color: 'bg-amber-100 text-amber-700', icon: Crown },
+};
 
 export function TenantsList() {
     const { t } = useTranslation();
@@ -38,6 +45,7 @@ export function TenantsList() {
         initialSmsQuota: 100,
         adminPassword: '',
         maxRetentionDays: 30,
+        plan: 'STARTER' as 'STARTER' | 'PREMIUM' | 'ENTERPRISE',
     });
 
     const [configData, setConfigData] = React.useState({
@@ -83,7 +91,7 @@ export function TenantsList() {
 
             addToast(t('tenants.modals.success_create', { name: formData.name }), 'success');
             setCreateModalOpen(false);
-            setFormData({ name: '', slug: '', niu: '', rccm: '', contactEmail: '', initialSmsQuota: 100, adminPassword: '', maxRetentionDays: 30 });
+            setFormData({ name: '', slug: '', niu: '', rccm: '', contactEmail: '', initialSmsQuota: 100, adminPassword: '', maxRetentionDays: 30, plan: 'STARTER' });
             fetchTenants();
         } catch (error: any) {
             addToast(error.message, 'error');
@@ -100,6 +108,7 @@ export function TenantsList() {
                 rccm: formData.rccm,
                 contactEmail: formData.contactEmail,
                 maxRetentionDays: formData.maxRetentionDays,
+                plan: formData.plan,
             };
 
             const res = await api.patch(`/tenants/${selectedTenant.id}`, payload);
@@ -135,6 +144,7 @@ export function TenantsList() {
             rccm: tenant.rccm || '',
             contactEmail: tenant.contactEmail || '',
             maxRetentionDays: tenant.maxRetentionDays || 30,
+            plan: tenant.plan || 'STARTER',
         });
         setEditModalOpen(true);
     };
@@ -179,6 +189,20 @@ export function TenantsList() {
                     {row.isActive ? t('common.active') : t('common.suspended')}
                 </Badge>
             ),
+        },
+        {
+            key: 'plan',
+            header: 'Plan',
+            render: (row: Tenant) => {
+                const config = PLAN_CONFIG[row.plan] || PLAN_CONFIG.STARTER;
+                const IconComponent = config.icon;
+                return (
+                    <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+                        <IconComponent className="w-3 h-3" />
+                        {config.label}
+                    </div>
+                );
+            }
         },
         {
             key: 'smsBalance',
@@ -364,6 +388,33 @@ export function TenantsList() {
                             <span className="text-sm text-amber-700">{t('common.days')}</span>
                         </div>
                         <p className="text-xs text-amber-600 mt-1">{t('tenants.modals.retentionDesc')}</p>
+                    </div>
+                    {/* Plan Selector */}
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <label className="block text-sm font-medium mb-2 text-purple-800">Plan d'abonnement</label>
+                        <div className="flex gap-2">
+                            {(['STARTER', 'PREMIUM', 'ENTERPRISE'] as const).map(plan => {
+                                const config = PLAN_CONFIG[plan];
+                                const IconComponent = config.icon;
+                                const isSelected = formData.plan === plan;
+                                return (
+                                    <button
+                                        key={plan}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, plan })}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border-2 transition-all ${isSelected
+                                                ? 'border-purple-500 bg-purple-100'
+                                                : 'border-gray-200 hover:border-purple-300'
+                                            }`}
+                                    >
+                                        <IconComponent className={`w-4 h-4 ${isSelected ? 'text-purple-600' : 'text-gray-500'}`} />
+                                        <span className={`text-sm font-medium ${isSelected ? 'text-purple-700' : 'text-gray-600'}`}>
+                                            {config.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                     <div className="flex gap-3 pt-4">
                         <Button onClick={() => setEditModalOpen(false)} className="flex-1 bg-gray-200 text-gray-800">{t('common.cancel')}</Button>

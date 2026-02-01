@@ -21,6 +21,8 @@ import {
     Calendar,
     Plug,
     BarChart3,
+    Package,
+    CreditCard,
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
@@ -34,12 +36,20 @@ interface NavItem {
 
 const NAV_CONFIG: Record<UserRole, NavItem[]> = {
     SUPER_ADMIN: [
+        // === Platform Management ===
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
         { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
         { label: 'Users & Staff', translationKey: 'nav.users', path: '/dashboard/users', icon: <Users className="w-5 h-5" /> },
         { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
+        { label: 'Pricing & Plans', translationKey: 'nav.pricing', path: '/dashboard/pricing-manager', icon: <CreditCard className="w-5 h-5" /> },
+        { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
         { label: 'Platform Settings', translationKey: 'nav.platform', path: '/dashboard/platform', icon: <Settings className="w-5 h-5" /> },
+        { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
+        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
         { label: 'Developer API', translationKey: 'nav.api', path: '/dashboard/api', icon: <Key className="w-5 h-5" /> },
         { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
+        { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
+        { label: 'Financial', translationKey: 'nav.financial', path: '/dashboard/financial', icon: <CreditCard className="w-5 h-5" /> },
     ],
     LAB_ADMIN: [
         { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
@@ -49,6 +59,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" /> },
         { label: 'Patient Portal', translationKey: 'nav.patientPortal', path: '/dashboard/patient-portal', icon: <Heart className="w-5 h-5" /> },
         { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" /> },
+        { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
         { label: 'Lab Settings', translationKey: 'nav.labSettings', path: '/dashboard/settings', icon: <Settings className="w-5 h-5" /> },
         { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
         { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },

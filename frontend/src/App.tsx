@@ -8,12 +8,14 @@ import { AuditLogs } from './pages/admin/AuditLogs';
 import { LabSettings } from './pages/admin/LabSettings';
 import { TenantsList } from './pages/admin/TenantsList';
 import { PlatformSettings } from './pages/admin/PlatformSettings';
+import { Team } from './pages/admin/Team';
 import { Login } from './pages/auth/Login';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import AnalyticsDashboard from './pages/lab/AnalyticsDashboard';
 import ResultsHistory from './pages/tech/ResultsHistory';
 import PatientLogin from './pages/patient/PatientLogin';
 import PatientDashboard from './pages/patient/PatientDashboard';
+import Pricing from './pages/public/Pricing';
 
 function App() {
   return (
@@ -22,6 +24,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<SmartUploadForm />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/pricing" element={<Pricing />} />
 
         {/* Patient Portal Routes */}
         <Route path="/patient/:slug/login" element={<PatientLogin />} />
@@ -33,6 +36,7 @@ function App() {
             <Routes>
               <Route path="lab-home" element={<AnalyticsDashboard />} />
               <Route path="history" element={<ResultsHistory />} />
+              <Route path="team" element={<RequireRole roles={['LAB_ADMIN']}><Team /></RequireRole>} />
               <Route path="tenants" element={<RequireRole roles={['SUPER_ADMIN']}><TenantsList /></RequireRole>} />
               <Route path="users" element={<RequireRole roles={['SUPER_ADMIN']}><UsersList /></RequireRole>} />
               <Route path="users-directory" element={<RequireRole roles={['SUPER_ADMIN']}><GlobalUsers /></RequireRole>} />
@@ -50,3 +54,5 @@ function App() {
 }
 
 export default App;
+
+

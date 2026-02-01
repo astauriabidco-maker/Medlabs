@@ -56,4 +56,14 @@ export class StatsController {
         const enabled = await this.statsService.isStatsEnabled(tenantId);
         return { enabled };
     }
+
+    /**
+     * Get platform-wide statistics for Super Admin
+     * GET /api/stats/platform
+     */
+    @Get('platform')
+    @Roles('SUPER_ADMIN')
+    async getPlatformStats() {
+        return this.statsService.getPlatformStats();
+    }
 }

@@ -13,7 +13,12 @@ import {
     RefreshCw,
     FileJson,
     FileCode,
-    Clock
+    Clock,
+    Key,
+    Eye,
+    EyeOff,
+    Trash2,
+    Monitor
 } from 'lucide-react';
 
 interface IntegrationLog {
@@ -41,6 +46,16 @@ export default function Integration() {
     const [logs, setLogs] = useState<IntegrationLog[]>([]);
     const [showDocs, setShowDocs] = useState(false);
     const [refreshingLogs, setRefreshingLogs] = useState(false);
+
+    // Auto-Sync Windows state
+    const [syncApiKey, setSyncApiKey] = useState<string | null>(null);
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [generatingKey, setGeneratingKey] = useState(false);
+
+    // LIS API key state
+    const [lisApiKey, setLisApiKey] = useState<string | null>(null);
+    const [showLisKey, setShowLisKey] = useState(false);
+    const [generatingLisKey, setGeneratingLisKey] = useState(false);
 
     // Get base URL for API endpoint display
     const baseUrl = typeof window !== 'undefined'
@@ -132,6 +147,84 @@ export default function Integration() {
         }
     };
 
+    // Fetch sync key on mount
+    const fetchSyncKey = async () => {
+        try {
+            const res = await api.get('/api/tenants/me/sync-key');
+            if (res.ok) {
+                const data = await res.json();
+                setSyncApiKey(data.syncApiKey || null);
+            }
+        } catch (err) {
+            console.error('Failed to fetch sync key:', err);
+        }
+    };
+
+    // Generate sync API key
+    const handleGenerateSyncKey = async () => {
+        setGeneratingKey(true);
+        try {
+            const res = await api.post('/api/tenants/me/sync-key', {});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            setSyncApiKey(data.syncApiKey);
+            setShowApiKey(true);
+            addToast('Clé de connexion générée', 'success');
+        } catch (err: any) {
+            addToast(err.message || 'Erreur', 'error');
+        } finally {
+            setGeneratingKey(false);
+        }
+    };
+
+    // Revoke sync API key
+    const handleRevokeSyncKey = async () => {
+        if (!confirm('Révoquer cette clé ? L\'automate ne pourra plus se connecter.')) return;
+        try {
+            await api.delete('/api/tenants/me/sync-key', {});
+            setSyncApiKey(null);
+            addToast('Clé révoquée', 'success');
+        } catch (err) {
+            addToast('Erreur lors de la révocation', 'error');
+        }
+    };
+
+    useEffect(() => {
+        fetchSyncKey();
+    }, []);
+
+    // Generate LIS API key
+    const handleGenerateLisKey = async () => {
+        setGeneratingLisKey(true);
+        try {
+            const res = await api.post('/api/tenants/me/api-key', {});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            setLisApiKey(data.apiKey);
+            setShowLisKey(true);
+            // Refresh status to update hasApiKey
+            await fetchStatus();
+            addToast('Clé API générée avec succès', 'success');
+        } catch (err: any) {
+            addToast(err.message || 'Erreur lors de la génération', 'error');
+        } finally {
+            setGeneratingLisKey(false);
+        }
+    };
+
+    // Revoke LIS API key  
+    const handleRevokeLisKey = async () => {
+        if (!confirm('Révoquer cette clé ? Les systèmes tiers ne pourront plus se connecter.')) return;
+        try {
+            await api.delete('/api/tenants/me/api-key', {});
+            setLisApiKey(null);
+            await fetchStatus();
+            addToast('Clé API révoquée', 'success');
+        } catch (err) {
+            addToast('Erreur lors de la révocation', 'error');
+        }
+    };
+
     if (loading) {
         return (
             <div className="p-6 flex items-center justify-center">
@@ -145,9 +238,100 @@ export default function Integration() {
             <div>
                 <h1 className="text-2xl font-bold">Intégration API</h1>
                 <p className="text-muted-foreground">
-                    Connectez votre système d'information (LIS/SIL) pour envoyer automatiquement les résultats
+                    Connectez votre système d'information (LIS/SIL) et configurez l'automate Windows
                 </p>
             </div>
+
+            {/* Auto-Sync Windows Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Monitor className="w-5 h-5 text-blue-600" />
+                        Auto-Sync Windows
+                    </CardTitle>
+                    <CardDescription>
+                        Synchronisation automatique depuis votre serveur Windows vers MedLab
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="p-4 bg-blue-50 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <Label className="font-medium">Connexion Automate Windows</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Générez une clé API pour connecter l'automate de synchronisation
+                                </p>
+                            </div>
+                            {!syncApiKey ? (
+                                <Button
+                                    onClick={handleGenerateSyncKey}
+                                    disabled={generatingKey}
+                                >
+                                    {generatingKey ? (
+                                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                                    ) : (
+                                        <Key className="w-4 h-4 mr-2" />
+                                    )}
+                                    Générer clé
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="danger"
+                                    onClick={handleRevokeSyncKey}
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Révoquer
+                                </Button>
+                            )}
+                        </div>
+
+                        {syncApiKey && (
+                            <div className="space-y-3 pt-3 border-t border-blue-200">
+                                <div>
+                                    <Label className="text-xs text-muted-foreground">Clé API Sync</Label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono">
+                                            {showApiKey ? syncApiKey : '•'.repeat(32)}
+                                        </code>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setShowApiKey(!showApiKey)}
+                                        >
+                                            {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => copyToClipboard(syncApiKey)}
+                                        >
+                                            <Copy className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <Label className="text-xs text-muted-foreground">Endpoint Ingest</Label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono">
+                                            {baseUrl}/api/ingest/document
+                                        </code>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => copyToClipboard(`${baseUrl}/api/ingest/document`)}
+                                        >
+                                            <Copy className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground italic">
+                                    Configurez ces informations dans l'automate Windows pour activer la synchronisation automatique.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Status Card */}
             <Card>
@@ -182,8 +366,71 @@ export default function Integration() {
                     </div>
 
                     {!status?.hasApiKey && (
-                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                            ⚠️ Vous devez d'abord générer une clé API dans les paramètres pour activer l'intégration.
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-amber-800">
+                                        ⚠️ Aucune clé API configurée
+                                    </p>
+                                    <p className="text-xs text-amber-700">
+                                        Générez une clé pour permettre aux systèmes LIS de se connecter
+                                    </p>
+                                </div>
+                                <Button
+                                    onClick={handleGenerateLisKey}
+                                    disabled={generatingLisKey}
+                                >
+                                    {generatingLisKey ? (
+                                        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                                    ) : (
+                                        <Key className="w-4 h-4 mr-2" />
+                                    )}
+                                    Générer clé API
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {status?.hasApiKey && (
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <Label className="text-sm font-medium text-green-800">Clé API LIS</Label>
+                                    <p className="text-xs text-green-700">Utilisée pour l'authentification des appels API</p>
+                                </div>
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={handleRevokeLisKey}
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Révoquer
+                                </Button>
+                            </div>
+                            {lisApiKey && (
+                                <div className="flex items-center gap-2 pt-2 border-t border-green-200">
+                                    <code className="flex-1 bg-white px-3 py-2 rounded border text-sm font-mono">
+                                        {showLisKey ? lisApiKey : '•'.repeat(32)}
+                                    </code>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowLisKey(!showLisKey)}
+                                    >
+                                        {showLisKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(lisApiKey)}
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            )}
+                            <p className="text-xs text-green-600 italic">
+                                Header d'authentification: <code className="bg-white px-1 rounded">X-API-Key: votre_clé</code>
+                            </p>
                         </div>
                     )}
 

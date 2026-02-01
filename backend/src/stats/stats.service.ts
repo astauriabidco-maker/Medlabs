@@ -192,4 +192,188 @@ export class StatsService {
         });
         return tenant?.statsEnabled || false;
     }
+
+    /**
+     * Get platform-wide statistics for Super Admin
+     */
+    async getPlatformStats(): Promise<{
+        overview: {
+            totalTenants: number;
+            activeTenants: number;
+            totalUsers: number;
+            totalResults: number;
+            resultsToday: number;
+            resultsThisMonth: number;
+        };
+        tenantsByPlan: Array<{ plan: string; count: number }>;
+        usersByRole: Array<{ role: string; count: number }>;
+        growthTrend: Array<{ date: string; tenants: number; results: number }>;
+        recentActivity: Array<{ type: string; message: string; time: Date }>;
+        topTenants: Array<{ name: string; slug: string; resultsCount: number }>;
+    }> {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        thisMonth.setHours(0, 0, 0, 0);
+
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+
+        // === OVERVIEW METRICS ===
+        const [
+            totalTenants,
+            activeTenants,
+            totalUsers,
+            totalResults,
+            resultsToday,
+            resultsThisMonth,
+        ] = await Promise.all([
+            this.prisma.tenant.count(),
+            this.prisma.tenant.count({ where: { isActive: true } }),
+            this.prisma.user.count(),
+            this.prisma.document.count(),
+            this.prisma.document.count({ where: { createdAt: { gte: today } } }),
+            this.prisma.document.count({ where: { createdAt: { gte: thisMonth } } }),
+        ]);
+
+        // === TENANTS BY STRUCTURE TYPE (since no 'plan' field) ===
+        const tenantsByPlan = await this.prisma.tenant.groupBy({
+            by: ['structureType'],
+            _count: { id: true },
+        }).then(results => results.map(r => ({
+            plan: r.structureType || 'PRIVATE_LAB',
+            count: r._count?.id || 0,
+        })));
+
+        const usersByRole = await this.prisma.user.groupBy({
+            by: ['role'],
+            _count: { id: true },
+        }).then(results => results.map(r => ({
+            role: r.role,
+            count: r._count?.id || 0,
+        })));
+
+        // === GROWTH TREND (last 30 days) ===
+        const growthTrend = await this.getGrowthTrend(last30Days);
+
+        // === TOP TENANTS BY RESULTS ===
+        const topTenants = await this.prisma.tenant.findMany({
+            select: {
+                name: true,
+                slug: true,
+                _count: { select: { documents: true } },
+            },
+            orderBy: { documents: { _count: 'desc' } },
+            take: 10,
+        }).then(tenants => tenants.map(t => ({
+            name: t.name,
+            slug: t.slug,
+            resultsCount: t._count.documents,
+        })));
+
+        // === RECENT ACTIVITY ===
+        const recentActivity = await this.getRecentPlatformActivity();
+
+        return {
+            overview: {
+                totalTenants,
+                activeTenants,
+                totalUsers,
+                totalResults,
+                resultsToday,
+                resultsThisMonth,
+            },
+            tenantsByPlan,
+            usersByRole,
+            growthTrend,
+            recentActivity,
+            topTenants,
+        };
+    }
+
+    /**
+     * Get growth trend for the last 30 days
+     */
+    private async getGrowthTrend(startDate: Date): Promise<Array<{ date: string; tenants: number; results: number }>> {
+        try {
+            const tenantGrowth = await this.prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+                SELECT DATE(created_at) as date, COUNT(*) as count
+                FROM tenants
+                WHERE created_at >= ${startDate}
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC
+            `;
+
+            const resultGrowth = await this.prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+                SELECT DATE(created_at) as date, COUNT(*) as count
+                FROM documents
+                WHERE created_at >= ${startDate}
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC
+            `;
+
+            // Merge both into a single trend array
+            const trendMap = new Map<string, { tenants: number; results: number }>();
+
+            tenantGrowth.forEach(t => {
+                const dateStr = new Date(t.date).toISOString().split('T')[0];
+                trendMap.set(dateStr, { tenants: Number(t.count), results: 0 });
+            });
+
+            resultGrowth.forEach(r => {
+                const dateStr = new Date(r.date).toISOString().split('T')[0];
+                const existing = trendMap.get(dateStr) || { tenants: 0, results: 0 };
+                trendMap.set(dateStr, { ...existing, results: Number(r.count) });
+            });
+
+            return Array.from(trendMap.entries())
+                .map(([date, data]) => ({ date, ...data }))
+                .sort((a, b) => a.date.localeCompare(b.date));
+        } catch (error) {
+            this.logger.warn('Error fetching growth trend', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get recent platform activity
+     */
+    private async getRecentPlatformActivity(): Promise<Array<{ type: string; message: string; time: Date }>> {
+        const activities: Array<{ type: string; message: string; time: Date }> = [];
+
+        // Recent tenants
+        const recentTenants = await this.prisma.tenant.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+            select: { name: true, createdAt: true },
+        });
+        recentTenants.forEach(t => {
+            activities.push({
+                type: 'tenant',
+                message: `Nouveau laboratoire: ${t.name}`,
+                time: t.createdAt,
+            });
+        });
+
+        // Recent users
+        const recentUsers = await this.prisma.user.findMany({
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+            select: { firstName: true, lastName: true, role: true, createdAt: true },
+        });
+        recentUsers.forEach(u => {
+            const fullName = [u.firstName, u.lastName].filter(Boolean).join(' ') || 'Utilisateur';
+            activities.push({
+                type: 'user',
+                message: `Nouvel utilisateur: ${fullName} (${u.role})`,
+                time: u.createdAt,
+            });
+        });
+
+        // Sort by time descending
+        return activities.sort((a, b) => b.time.getTime() - a.time.getTime()).slice(0, 10);
+    }
 }
+

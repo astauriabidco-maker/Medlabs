@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
 import { validateEnvironment } from './config/env.validation';
+import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   // Validate environment before starting
@@ -20,6 +21,9 @@ async function bootstrap() {
 
   // Global API prefix
   app.setGlobalPrefix('api');
+
+  // Global Exception Filter (Prisma errors → proper HTTP codes)
+  app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
   // Global Validation Pipe
   app.useGlobalPipes(new ValidationPipe({

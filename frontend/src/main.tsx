@@ -16,7 +16,7 @@ import { ToastProvider } from './components/ui-dashboard.tsx'
 import { DashboardLayout } from './layouts/DashboardLayout.tsx'
 import { TenantsList } from './pages/admin/TenantsList.tsx'
 import { UsersList } from './pages/admin/UsersList.tsx'
-import { TeamManagement } from './pages/lab/TeamManagement.tsx'
+import { Team } from './pages/admin/Team.tsx'
 import { Settings } from './pages/lab/Settings.tsx'
 import { PlatformSettings } from './pages/admin/PlatformSettings.tsx'
 
@@ -33,9 +33,15 @@ import PatientDashboard from './pages/patient/PatientDashboard.tsx'
 import Alerts from './pages/lab/Alerts.tsx'
 import PatientPortal from './pages/lab/PatientPortal.tsx'
 import Appointments from './pages/lab/Appointments.tsx'
-import Integration from './pages/lab/Integration.tsx'
-import BIDashboard from './pages/lab/BIDashboard.tsx'
-import Booking from './pages/public/Booking.tsx'
+import Integration from './pages/lab/Integration.tsx';
+import BIDashboard from './pages/lab/BIDashboard.tsx';
+import Marketplace from './pages/lab/Marketplace.tsx';
+import Booking from './pages/public/Booking.tsx';
+import Pricing from './pages/public/Pricing.tsx';
+import PricingManager from './pages/admin/PricingManager.tsx';
+import SuperAdminDashboard from './pages/admin/SuperAdminDashboard.tsx';
+import { SystemAlerts } from './pages/admin/SystemAlerts.tsx';
+import { FinancialDashboard } from './pages/admin/FinancialDashboard.tsx';
 
 function DashboardRoutes() {
   return (
@@ -45,12 +51,16 @@ function DashboardRoutes() {
         <Route path="lab-home" element={<AnalyticsDashboard />} />
 
         {/* Super Admin Routes */}
+        <Route path="super-admin" element={<SuperAdminDashboard />} />
         <Route path="tenants" element={<TenantsList />} />
         <Route path="users" element={<UsersList />} />
         <Route path="platform" element={<PlatformSettings />} />
+        <Route path="pricing-manager" element={<PricingManager />} />
+        <Route path="system-alerts" element={<SystemAlerts />} />
+        <Route path="financial" element={<FinancialDashboard />} />
 
         {/* Lab Admin Routes */}
-        <Route path="team" element={<TeamManagement />} />
+        <Route path="team" element={<Team />} />
         <Route path="settings" element={<Settings />} />
         <Route path="sms" element={<Settings />} />
         <Route path="api" element={<Settings />} />
@@ -59,6 +69,7 @@ function DashboardRoutes() {
         <Route path="appointments" element={<Appointments />} />
         <Route path="integration" element={<Integration />} />
         <Route path="analytics" element={<BIDashboard />} />
+        <Route path="marketplace" element={<Marketplace />} />
 
 
         {/* Technician Routes */}
@@ -83,6 +94,7 @@ createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/become-partner" element={<BecomePartner />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />

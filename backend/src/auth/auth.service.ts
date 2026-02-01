@@ -34,7 +34,8 @@ export class AuthService {
             sub: user.id,
             email: user.email,
             role: user.role,
-            tenantId: user.tenantId
+            tenantId: user.tenantId,
+            customRoleId: user.customRoleId || null
         };
         return {
             access_token: this.jwtService.sign(payload, {
@@ -102,31 +103,45 @@ export class AuthService {
         }
     }
 
-    async impersonate(targetUserId: string) {
+    async impersonate(targetUserId: string, originalAdminId: string) {
         // Target User
         const user = await this.prisma.user.findUnique({ where: { id: targetUserId } });
         if (!user) throw new NotFoundException('User not found');
 
-        // Generate Token for this user
+        // Generate Token for this user with impersonation flag
         const payload = {
             sub: user.id,
             email: user.email,
             role: user.role,
             tenantId: user.tenantId,
-            isImpersonated: true // Flag for frontend or audit
+            customRoleId: user.customRoleId || null,
+            isImpersonated: true,
+            originalAdminId: originalAdminId, // Store for return functionality
         };
 
         return {
             access_token: this.jwtService.sign(payload, {
                 secret: process.env.JWT_SECRET || 'dev_secret_key_123',
-                expiresIn: '1h' // Short lived
+                expiresIn: '1h' // Short lived for security
             }),
             user: {
                 id: user.id,
                 email: user.email,
                 role: user.role,
-                tenantId: user.tenantId
+                tenantId: user.tenantId,
+                isImpersonated: true,
             }
         };
+    }
+
+    async unimpersonate(originalAdminId: string) {
+        // Get the original Super Admin
+        const admin = await this.prisma.user.findUnique({ where: { id: originalAdminId } });
+        if (!admin || admin.role !== 'SUPER_ADMIN') {
+            throw new UnauthorizedException('Invalid admin');
+        }
+
+        // Generate fresh token for the Super Admin
+        return this.login(admin);
     }
 }

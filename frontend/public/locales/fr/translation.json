@@ -23,7 +23,10 @@
         "quickUpload": "Envoyer Résultats",
         "signOut": "Se Déconnecter",
         "role": "Rôle",
-        "tenant": "Laboratoire"
+        "tenant": "Laboratoire",
+        "marketplace": "Marketplace",
+        "integration": "Intégration API",
+        "analytics": "Analyse BI"
     },
     "auth": {
         "signInTitle": "Connexion Partenaire",

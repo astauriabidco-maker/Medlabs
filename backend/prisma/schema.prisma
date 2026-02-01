@@ -90,6 +90,25 @@ enum PaymentProviderType {
   MTN_MOMO      // Direct MTN MoMo CM API
 }
 
+enum WhatsAppNotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppProvider {
+  META
+  TWILIO
+}
+
+enum TenantPlan {
+  STARTER     // Free tier - basic features
+  PREMIUM     // 49,000 FCFA/month - advanced features
+  ENTERPRISE  // 99,000 FCFA/month - all features
+}
+
 enum AppointmentType {
   LAB_VISIT       // Consultation au laboratoire
   HOME_SAMPLING   // Prélèvement à domicile
@@ -102,9 +121,119 @@ enum AppointmentStatus {
   CANCELLED
 }
 
+enum AlertSeverity {
+  INFO        // Informational
+  WARNING     // Needs attention soon
+  CRITICAL    // Immediate action required
+}
+
+enum AlertType {
+  LOW_SMS_BALANCE       // Tenant running low on SMS credits
+  INACTIVE_TENANT       // Tenant hasn't had activity in 7+ days
+  PAYMENT_OVERDUE       // Subscription payment overdue
+  STORAGE_WARNING       // Approaching storage limits
+  SECURITY_EVENT        // Login failures, suspicious activity
+  SYSTEM_ERROR          // Backend errors, API failures
+  NEW_TENANT            // New tenant registration
+}
+
+enum SubscriptionStatus {
+  TRIAL           // Free trial period
+  ACTIVE          // Paid and active
+  PAST_DUE        // Payment overdue
+  CANCELLED       // User cancelled
+  SUSPENDED       // Admin suspended
+}
+
 // --------------------------------------
 // MODELS
 // --------------------------------------
+
+// Tenant Subscription Billing
+model Subscription {
+  id            String             @id @default(uuid())
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  // Tenant Relation
+  tenantId      String             @unique @map("tenant_id")
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+
+  // Plan Details
+  plan          TenantPlan         @default(STARTER)
+  status        SubscriptionStatus @default(TRIAL)
+  
+  // Billing Cycle
+  billingCycle  String             @default("MONTHLY") @map("billing_cycle")  // MONTHLY | YEARLY
+  pricePerMonth Int                @default(0) @map("price_per_month")        // In XAF
+  
+  // Dates
+  trialEndsAt   DateTime?          @map("trial_ends_at")
+  currentPeriodStart DateTime      @default(now()) @map("current_period_start")
+  currentPeriodEnd   DateTime      @default(now()) @map("current_period_end")
+  cancelledAt   DateTime?          @map("cancelled_at")
+  
+  // Payment History
+  payments      SubscriptionPayment[]
+  
+  @@map("subscriptions")
+  @@index([status])
+}
+
+// Subscription Payment Records
+model SubscriptionPayment {
+  id            String             @id @default(uuid())
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  // Subscription Relation
+  subscriptionId String            @map("subscription_id")
+  subscription   Subscription      @relation(fields: [subscriptionId], references: [id])
+
+  // Payment Details
+  amount        Int                               // In XAF
+  currency      String             @default("XAF")
+  provider      PaymentProviderType?
+  externalRef   String?            @map("external_ref")
+  status        TransactionStatus  @default(PENDING)
+  
+  // Period Covered
+  periodStart   DateTime           @map("period_start")
+  periodEnd     DateTime           @map("period_end")
+  
+  // Notes
+  notes         String?
+  
+  @@map("subscription_payments")
+  @@index([subscriptionId])
+  @@index([createdAt])
+}
+
+// System-wide alerts for Super Admin
+model SystemAlert {
+  id          String         @id @default(uuid())
+  createdAt   DateTime       @default(now()) @map("created_at")
+  
+  type        AlertType
+  severity    AlertSeverity  @default(WARNING)
+  title       String
+  message     String
+  
+  // Optional link to tenant/user
+  tenantId    String?        @map("tenant_id")
+  tenant      Tenant?        @relation("TenantAlerts", fields: [tenantId], references: [id])
+  userId      String?        @map("user_id")
+  
+  // Status
+  isRead      Boolean        @default(false) @map("is_read")
+  isDismissed Boolean        @default(false) @map("is_dismissed")
+  
+  // Metadata
+  metadata    Json?          // Extra data (e.g., current balance, threshold)
+  
+  @@map("system_alerts")
+  @@index([createdAt])
+  @@index([isRead, isDismissed])
+}
 
 model Tenant {
   id        String   @id @default(uuid())
@@ -142,9 +271,12 @@ model Tenant {
 
   // Status
   isActive Boolean @default(true) @map("is_active")
+  
+  // Subscription Plan
+  plan TenantPlan @default(STARTER) @map("plan")
 
   // Feature Flags & Licensing
-  features          String[]  @default([])         // e.g., ["AUTO_SYNC", "LONG_TERM_ARCHIVE"]
+  features          String[]  @default(["WHATSAPP_BUSINESS"])  // Base offer includes WhatsApp
   licenseKey        String?   @map("license_key")  // Activation key used
   syncApiKey        String?   @unique @map("sync_api_key")  // API key for Windows automation
   isAutoSyncEnabled Boolean   @default(false) @map("is_auto_sync_enabled")
@@ -189,6 +321,19 @@ model Tenant {
   // Business Intelligence (Premium Feature)
   statsEnabled Boolean @default(false) @map("stats_enabled")
 
+  // WhatsApp Provider Selection
+  whatsappProvider            WhatsAppProvider @default(META) @map("whatsapp_provider")
+
+  // WhatsApp Business Cloud API (Meta) - BYOK
+  whatsappPhoneNumberId       String? @map("whatsapp_phone_number_id")
+  whatsappAccessToken         String? @map("whatsapp_access_token")       // Long-lived token (ENCRYPTED)
+  whatsappBusinessAccountId   String? @map("whatsapp_business_account_id")
+
+  // Twilio WhatsApp (Fallback Provider)
+  twilioAccountSid            String? @map("twilio_account_sid")
+  twilioAuthToken             String? @map("twilio_auth_token")           // ENCRYPTED
+  twilioWhatsappNumber        String? @map("twilio_whatsapp_number")      // Format: whatsapp:+1415...
+
   // Relations
   users           User[]
   documents       Document[]
@@ -200,6 +345,9 @@ model Tenant {
   appointments    Appointment[]
   blockedSlots    BlockedSlot[]
   integrationLogs IntegrationLog[]
+  roles           Role[]
+  systemAlerts    SystemAlert[]   @relation("TenantAlerts")
+  subscription    Subscription?
 
   @@map("tenants")
 }
@@ -249,8 +397,12 @@ model User {
   // Profile
   firstName String?  @map("first_name")
   lastName  String?  @map("last_name")
-  role      UserRole @default(VIEWER)
+  role      UserRole @default(VIEWER)  // Legacy enum, kept for SUPER_ADMIN
   lastLoginAt DateTime? @map("last_login_at")
+
+  // Dynamic RBAC
+  customRoleId String? @map("custom_role_id")
+  customRole   Role?   @relation(fields: [customRoleId], references: [id])
 
   // Status
   status          UserStatus @default(INVITED)
@@ -260,7 +412,32 @@ model User {
   uploadedDocs Document[]
 
   @@index([tenantId])
+  @@index([customRoleId])
   @@map("users")
+}
+
+// Dynamic Role-Based Access Control
+model Role {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Tenant Relation
+  tenantId String @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Role Definition
+  name        String    // "Biologiste", "Secrétaire", etc.
+  description String?   @db.Text
+  permissions String[]  // Array of permission keys: ["UPLOAD_SCAN", "VIEW_RESULTS"]
+  isSystem    Boolean   @default(false) @map("is_system")  // Prevent deletion of Admin role
+
+  // Users with this role
+  users User[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("roles")
 }
 
 model Document {
@@ -304,6 +481,11 @@ model Document {
 
   // Business Intelligence
   prescriberName String? @map("prescriber_name")  // Doctor who prescribed the tests
+
+  // WhatsApp Notification Tracking
+  whatsappStatus     WhatsAppNotificationStatus? @map("whatsapp_status")
+  whatsappMessageId  String?                     @map("whatsapp_message_id")
+  whatsappSentAt     DateTime?                   @map("whatsapp_sent_at")
 
   // Payment Transactions
   transactions Transaction[]
@@ -548,3 +730,53 @@ model IntegrationLog {
   @@index([tenantId, createdAt])
   @@map("integration_logs")
 }
+
+// --------------------------------------
+// PRICING MANAGEMENT (Super Admin)
+// --------------------------------------
+
+model PricingPlan {
+  id           String   @id @default(cuid())
+  name         String   // "Starter", "Premium", "Enterprise"
+  slug         String   @unique
+  description  String?
+  price        Int      @default(0) // en FCFA, 0 = gratuit
+  interval     String   @default("month") // "month" | "year"
+  popular      Boolean  @default(false) // "Le plus populaire" badge
+  color        String   @default("blue") // theme color
+  buttonText   String?  @map("button_text")
+  buttonVariant String  @default("default") @map("button_variant")
+  sortOrder    Int      @default(0) @map("sort_order")
+  active       Boolean  @default(true)
+  
+  includedFeatures String[] @default([]) // feature keys included
+  featureLimits    Json?    @map("feature_limits") // {"TEAM_MEMBERS": 3, "RETENTION_DAYS": 90}
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  @@map("pricing_plans")
+}
+
+model PricingFeature {
+  id          String   @id @default(cuid())
+  name        String   // Display name: "Membres d'équipe"
+  key         String   @unique // Identifier: "TEAM_MEMBERS"
+  description String?
+  category    String?  // "communication", "storage", "analytics", "integration"
+  icon        String?  // lucide icon name: "Users", "Database"
+  
+  // Add-on module settings
+  isAddon     Boolean  @default(false) @map("is_addon") // true = module à la carte
+  addonPrice  Int?     @map("addon_price") // prix si module séparé
+  addonColor  String?  @map("addon_color") // gradient color
+  
+  sortOrder   Int      @default(0) @map("sort_order")
+  active      Boolean  @default(true)
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("pricing_features")
+}
+

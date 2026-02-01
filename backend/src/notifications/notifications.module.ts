@@ -5,6 +5,9 @@ import { join } from 'path';
 import { SmsService } from './sms.service';
 import { EmailService } from './email.service';
 import { WhatsAppService } from './whatsapp.service';
+import { WhatsAppWebhookController } from './whatsapp-webhook.controller';
+import { WhatsAppApiController } from './whatsapp-api.controller';
+import { TwilioWebhookController } from './twilio-webhook.controller';
 import { DynamicNotificationService } from './dynamic-notification.service';
 import { DynamicConfigService } from '../dynamic-config.service';
 import { PrismaService } from '../prisma.service';
@@ -45,8 +48,8 @@ import { EncryptionService } from '../shared/encryption.service';
             inject: [DynamicConfigService],
         }),
     ],
-    providers: [SmsService, EmailService, WhatsAppService, DynamicNotificationService, EncryptionService],
+    controllers: [WhatsAppWebhookController, WhatsAppApiController, TwilioWebhookController],
+    providers: [SmsService, EmailService, WhatsAppService, DynamicNotificationService, EncryptionService, PrismaService],
     exports: [SmsService, EmailService, WhatsAppService, DynamicNotificationService],
 })
 export class NotificationsModule { }
-

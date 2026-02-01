@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const PdfPrinter = require('pdfmake');
 
 interface PatientData {
     name: string;
@@ -28,19 +26,28 @@ interface TenantInfo {
 @Injectable()
 export class PdfGeneratorService {
     private readonly logger = new Logger(PdfGeneratorService.name);
-    private printer: any;  // pdfmake printer instance
+    private printer: any = null;  // pdfmake printer instance (lazy init)
 
-    constructor() {
-        // Define fonts for pdfmake
-        const fonts = {
-            Roboto: {
-                normal: 'node_modules/pdfmake/build/vfs_fonts.js',
-                bold: 'node_modules/pdfmake/build/vfs_fonts.js',
-                italics: 'node_modules/pdfmake/build/vfs_fonts.js',
-                bolditalics: 'node_modules/pdfmake/build/vfs_fonts.js',
-            },
-        };
-        this.printer = new PdfPrinter(fonts);
+    private getPrinter() {
+        if (!this.printer) {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const PdfPrinter = require('pdfmake/src/printer');
+                const fonts = {
+                    Roboto: {
+                        normal: 'Helvetica',
+                        bold: 'Helvetica-Bold',
+                        italics: 'Helvetica-Oblique',
+                        bolditalics: 'Helvetica-BoldOblique',
+                    },
+                };
+                this.printer = new PdfPrinter(fonts);
+            } catch (error) {
+                this.logger.error('Failed to initialize PDF printer', error);
+                throw error;
+            }
+        }
+        return this.printer;
     }
 
     /**
@@ -253,7 +260,7 @@ export class PdfGeneratorService {
 
         return new Promise((resolve, reject) => {
             try {
-                const pdfDoc = this.printer.createPdfKitDocument(docDefinition);
+                const pdfDoc = this.getPrinter().createPdfKitDocument(docDefinition);
                 const chunks: Buffer[] = [];
 
                 pdfDoc.on('data', (chunk: Buffer) => chunks.push(chunk));

@@ -29,6 +29,12 @@ import { PaymentModule } from './payment/payment.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { IntegrationModule } from './integration/integration.module';
 import { StatsModule } from './stats/stats.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { FilesModule } from './files/files.module';
+import { TeamModule } from './team/team.module';
+import { PricingModule } from './pricing/pricing.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -71,6 +77,12 @@ import { StatsModule } from './stats/stats.module';
     AppointmentsModule,
     IntegrationModule,
     StatsModule,
+    PrismaModule,
+    FilesModule,
+    TeamModule,
+    PricingModule,
+    AlertsModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController, PlatformConfigController],
   providers: [

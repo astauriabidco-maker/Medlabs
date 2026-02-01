@@ -1,5 +1,5 @@
 
-import { Controller, Post, Body, UnauthorizedException, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UnauthorizedException, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard, RolesGuard, Roles } from './guards';
@@ -45,7 +45,18 @@ export class AuthController {
     @Post('impersonate')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPER_ADMIN')
-    async impersonate(@Body('userId') userId: string) {
-        return this.authService.impersonate(userId);
+    async impersonate(@Body('userId') userId: string, @Request() req: any) {
+        const originalAdminId = req.user.sub;
+        return this.authService.impersonate(userId, originalAdminId);
+    }
+
+    @Post('unimpersonate')
+    @UseGuards(JwtAuthGuard)
+    async unimpersonate(@Request() req: any) {
+        const originalAdminId = req.user.originalAdminId;
+        if (!originalAdminId) {
+            throw new UnauthorizedException('No impersonation session active');
+        }
+        return this.authService.unimpersonate(originalAdminId);
     }
 }

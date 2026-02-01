@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Button, Input, Label } from '@/components/ui-basic';
 import { Tabs, Modal, ProgressBar, useToast } from '@/components/ui-dashboard';
 import { useAuth } from '@/context/AuthContext';
-import { Key, Copy, Trash2, AlertTriangle, Upload, MessageSquare, Phone, CheckCircle, XCircle, Loader2, Eye, EyeOff, Shield, Archive, Palette, Wallet, Smartphone } from 'lucide-react';
+import { Key, Copy, Trash2, AlertTriangle, Upload, MessageSquare, Phone, CheckCircle, XCircle, Loader2, Eye, EyeOff, Shield, Archive, Palette, Wallet, Smartphone, Mail } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 
@@ -59,7 +59,15 @@ export function Settings() {
                 // Campay
                 if (data.campayUsername) {
                     setCampayUsername(data.campayUsername);
-                    setCampayConfigured(true);
+                    setProviderConfigured(true);
+                }
+                // WhatsApp Business API
+                if (data.whatsappPhoneNumberId) {
+                    setWhatsappPhoneNumberId(data.whatsappPhoneNumberId);
+                    setWhatsappConfigured(true);
+                }
+                if (data.whatsappBusinessAccountId) {
+                    setWhatsappBusinessAccountId(data.whatsappBusinessAccountId);
                 }
             })
             .catch(err => console.error(err));
@@ -246,6 +254,23 @@ export function Settings() {
     const [savingPayment, setSavingPayment] = React.useState(false);
     const [testingPayment, setTestingPayment] = React.useState(false);
     const [paymentTestStatus, setPaymentTestStatus] = React.useState<'success' | 'failed' | null>(null);
+
+    // SMTP Email Configuration State
+    const [smtp, setSmtp] = React.useState({
+        host: '',
+        port: 587,
+        user: '',
+        password: '',
+        fromName: '',
+        fromEmail: '',
+        secure: false, // TLS/SSL
+        exists: false,
+        testStatus: null as 'success' | 'failed' | null,
+    });
+    const [savingSmtp, setSavingSmtp] = React.useState(false);
+    const [testingSmtp, setTestingSmtp] = React.useState(false);
+    const [testEmailAddress, setTestEmailAddress] = React.useState('');
+
 
     // Fetch Modules and Sync Key Status on mount
     React.useEffect(() => {
@@ -591,111 +616,150 @@ export function Settings() {
                                 </p>
                             </div>
 
-                            <Button onClick={saveSettings}>
-                                {t('common.save')}
-                            </Button>
-                        </div>
-                    ),
-                },
-                {
-                    id: 'api',
-                    label: t('settings.tabs.api'),
-                    content: (
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
+                            {/* Separator */}
+                            <div className="border-t pt-6 mt-6">
+                                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                                    <Palette className="w-5 h-5 text-purple-600" />
+                                    Marque Blanche
+                                </h3>
+                                <p className="text-sm text-muted-foreground mb-4">Personnalisez l'apparence de vos pages patient</p>
+                            </div>
+
+                            {/* Color Picker */}
+                            <div className="bg-white border rounded-lg p-6 space-y-4">
                                 <div>
-                                    <h3 className="font-medium">{t('settings.api.title')}</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {t('settings.api.subtitle')}
+                                    <Label className="block mb-2">Couleur principale</Label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="color"
+                                            value={brandColor}
+                                            onChange={(e) => setBrandColor(e.target.value)}
+                                            className="w-12 h-12 rounded-lg border cursor-pointer"
+                                        />
+                                        <Input
+                                            value={brandColor}
+                                            onChange={(e) => setBrandColor(e.target.value)}
+                                            placeholder="#3B82F6"
+                                            className="w-32 font-mono"
+                                        />
+                                        <span className="text-sm text-muted-foreground">
+                                            Utilisé pour les boutons et accents
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Logo Upload */}
+                                <div>
+                                    <Label className="block mb-2">Logo du laboratoire</Label>
+                                    <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                                        {brandLogoUrl ? (
+                                            <div className="space-y-3">
+                                                <img
+                                                    src={brandLogoUrl || ''}
+                                                    alt="Logo"
+                                                    className="max-h-20 mx-auto object-contain"
+                                                />
+                                                <p className="text-sm text-green-600 flex items-center justify-center gap-1">
+                                                    <CheckCircle className="w-4 h-4" />
+                                                    Logo configuré
+                                                </p>
+                                                <label className="cursor-pointer">
+                                                    <span className="text-sm text-blue-600 hover:underline">
+                                                        Changer le logo
+                                                    </span>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/png,image/jpeg,image/webp"
+                                                        onChange={handleLogoUpload}
+                                                        className="hidden"
+                                                    />
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <label className="cursor-pointer block">
+                                                <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
+                                                <p className="text-sm text-gray-600">
+                                                    {uploadingLogo ? (
+                                                        <span className="flex items-center justify-center gap-2">
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                            Upload en cours...
+                                                        </span>
+                                                    ) : (
+                                                        <>Cliquez ou glissez votre logo ici</>
+                                                    )}
+                                                </p>
+                                                <p className="text-xs text-gray-400 mt-1">PNG, JPG ou WebP (max 2 Mo)</p>
+                                                <input
+                                                    type="file"
+                                                    accept="image/png,image/jpeg,image/webp"
+                                                    onChange={handleLogoUpload}
+                                                    className="hidden"
+                                                    disabled={uploadingLogo}
+                                                />
+                                            </label>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Slug */}
+                                <div>
+                                    <Label className="block mb-2">Identifiant URL (slug)</Label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">medlab.cm/</span>
+                                        <Input
+                                            value={tenantSlug}
+                                            onChange={(e) => setTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                            placeholder="mon-labo"
+                                            className="flex-1"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        URL personnalisée pour vos patients
                                     </p>
                                 </div>
-                                <Button onClick={() => setNewKeyModalOpen(true)} className="gap-2">
-                                    <Key className="w-4 h-4" />
-                                    {t('settings.api.btn_generate')}
+                            </div>
+
+                            {/* Live Preview */}
+                            <div className="bg-white border rounded-lg p-6">
+                                <h4 className="font-medium mb-4">Aperçu du bouton patient</h4>
+                                <div className="bg-gray-100 rounded-lg p-6 flex flex-col items-center gap-4">
+                                    {brandLogoUrl && (
+                                        <img
+                                            src={brandLogoUrl || ''}
+                                            alt="Logo Preview"
+                                            className="max-h-12 object-contain"
+                                        />
+                                    )}
+                                    <button
+                                        style={{ backgroundColor: brandColor }}
+                                        className="px-6 py-3 text-white rounded-lg font-medium shadow-lg transition-transform hover:scale-105"
+                                    >
+                                        Accéder à mes résultats
+                                    </button>
+                                    <p className="text-xs text-gray-500">
+                                        Tel que vu par vos patients
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <Button onClick={saveSettings}>
+                                    {t('common.save')}
+                                </Button>
+                                <Button onClick={saveBranding} disabled={savingBranding} variant="outline">
+                                    {savingBranding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                    Enregistrer l'apparence
                                 </Button>
                             </div>
-
-                            <div className="border rounded-lg divide-y">
-                                {apiKeys.map((key) => (
-                                    <div key={key.id} className="p-4 flex items-center justify-between">
-                                        <div>
-                                            <p className="font-medium">{key.name}</p>
-                                            <p className="text-sm text-muted-foreground font-mono">{key.prefix}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {t('settings.api.table.info', { date: key.createdAt, used: key.lastUsed ? `Last used ${key.lastUsed}` : 'Never used' })}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleRevokeKey(key.id)}
-                                            className="text-red-600 hover:bg-red-50 p-2 rounded-lg"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <Modal
-                                open={newKeyModalOpen}
-                                onClose={() => {
-                                    setNewKeyModalOpen(false);
-                                    setGeneratedKey(null);
-                                    setNewKeyName('');
-                                }}
-                                title={generatedKey ? t('settings.api.modal.save') : t('settings.api.modal.create')}
-                            >
-                                {generatedKey ? (
-                                    <div className="space-y-4">
-                                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                                            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                                            <div className="text-sm text-amber-800">
-                                                <p className="font-medium">{t('settings.api.modal.save')}</p>
-                                                <p>{t('settings.api.modal.saveDesc')}</p>
-                                            </div>
-                                        </div>
-                                        <div className="bg-gray-100 rounded-lg p-3 font-mono text-sm break-all flex items-center gap-2">
-                                            <span className="flex-1">{generatedKey}</span>
-                                            <button onClick={() => copyToClipboard(generatedKey)} className="p-1 hover:bg-gray-200 rounded">
-                                                <Copy className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <Button
-                                            onClick={() => {
-                                                setNewKeyModalOpen(false);
-                                                setGeneratedKey(null);
-                                                setNewKeyName('');
-                                            }}
-                                            className="w-full"
-                                        >
-                                            {t('settings.api.modal.btn_confirm')}
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1">{t('settings.api.modal.name')}</label>
-                                            <input
-                                                type="text"
-                                                className="w-full border rounded-lg px-3 py-2"
-                                                value={newKeyName}
-                                                onChange={(e) => setNewKeyName(e.target.value)}
-                                                placeholder="e.g., SIL Production"
-                                            />
-                                        </div>
-                                        <Button onClick={handleGenerateKey} className="w-full">
-                                            {t('settings.api.btn_generate')}
-                                        </Button>
-                                    </div>
-                                )}
-                            </Modal>
                         </div>
                     ),
                 },
                 {
-                    id: 'sms',
-                    label: t('settings.tabs.sms'),
+                    id: 'integrations',
+                    label: t('settings.tabs.integrations') || 'Intégrations',
                     content: (
                         <div className="space-y-6 max-w-xl">
+                            {/* SMS Quota Section */}
                             <div className="bg-white border rounded-lg p-6">
                                 <h3 className="font-medium mb-4">{t('settings.sms.title')}</h3>
                                 <ProgressBar value={smsUsed} max={smsTotal} label={t('settings.sms.used')} showWarning />
@@ -729,14 +793,12 @@ export function Settings() {
                             <div className="text-sm text-muted-foreground">
                                 <p>{t('settings.sms.hint')}</p>
                             </div>
-                        </div>
-                    ),
-                },
-                {
-                    id: 'integrations',
-                    label: t('settings.tabs.integrations') || 'Intégrations',
-                    content: (
-                        <div className="space-y-6 max-w-xl">
+
+                            {/* Separator */}
+                            <div className="border-t pt-6 mt-6">
+                                <h3 className="font-semibold text-lg mb-4">Configuration SMS/WhatsApp</h3>
+                            </div>
+
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
                                 <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                                 <div className="text-sm text-blue-800">
@@ -759,70 +821,178 @@ export function Settings() {
                                 </select>
                             </div>
 
-                            {/* Account ID */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1">{t('integrations.accountId') || 'Account SID / App ID'}</label>
-                                <input
-                                    type="text"
-                                    className="w-full border rounded-lg px-3 py-2 font-mono"
-                                    value={integration.accountId}
-                                    onChange={(e) => setIntegration({ ...integration, accountId: e.target.value })}
-                                    placeholder={integration.provider === 'TWILIO' ? 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' : 'App ID'}
-                                />
-                            </div>
+                            {/* Dynamic Fields Based on Provider */}
+                            {integration.provider === 'TWILIO' && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Account SID</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.accountId}
+                                            onChange={(e) => setIntegration({ ...integration, accountId: e.target.value })}
+                                            placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Disponible dans la console Twilio</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Auth Token</label>
+                                        <input
+                                            type="password"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.authToken}
+                                            onChange={(e) => setIntegration({ ...integration, authToken: e.target.value })}
+                                            placeholder={integration.exists ? '••••••••••••••••' : 'Entrez votre Auth Token'}
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Le token est chiffré avant stockage.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                                            <Phone className="w-4 h-4" />
+                                            Numéro d'envoi Twilio
+                                        </label>
+                                        <input
+                                            type="tel"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={integration.phoneNumber}
+                                            onChange={(e) => setIntegration({ ...integration, phoneNumber: e.target.value })}
+                                            placeholder="+237612345678"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Même numéro pour SMS et WhatsApp. Le format sera adapté automatiquement.</p>
+                                    </div>
+                                </>
+                            )}
 
-                            {/* Auth Token */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1">{t('integrations.authToken') || 'Auth Token'}</label>
-                                <input
-                                    type="password"
-                                    className="w-full border rounded-lg px-3 py-2 font-mono"
-                                    value={integration.authToken}
-                                    onChange={(e) => setIntegration({ ...integration, authToken: e.target.value })}
-                                    placeholder={integration.exists ? '••••••••••••••••' : 'Entrez votre token'}
-                                />
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {t('integrations.authTokenHint') || 'Le token est chiffré avant stockage. Ne sera jamais affiché.'}
-                                </p>
-                            </div>
+                            {integration.provider === 'META' && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Phone Number ID</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.accountId}
+                                            onChange={(e) => setIntegration({ ...integration, accountId: e.target.value })}
+                                            placeholder="123456789012345"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Disponible dans Meta Developer Console</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Access Token</label>
+                                        <input
+                                            type="password"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.authToken}
+                                            onChange={(e) => setIntegration({ ...integration, authToken: e.target.value })}
+                                            placeholder={integration.exists ? '••••••••••••••••' : 'Token d\'accès Meta'}
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Le token est chiffré avant stockage.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Business Account ID (WABA)</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.phoneNumber}
+                                            onChange={(e) => setIntegration({ ...integration, phoneNumber: e.target.value })}
+                                            placeholder="WABA ID (ex: 1234567890123456)"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">ID du compte WhatsApp Business</p>
+                                    </div>
+                                </>
+                            )}
 
-                            {/* Phone Number */}
-                            <div>
-                                <label className="block text-sm font-medium mb-1 flex items-center gap-1">
-                                    <Phone className="w-4 h-4" />
-                                    {t('integrations.phoneNumber') || 'Numéro d\'envoi'}
-                                </label>
-                                <input
-                                    type="tel"
-                                    className="w-full border rounded-lg px-3 py-2"
-                                    value={integration.phoneNumber}
-                                    onChange={(e) => setIntegration({ ...integration, phoneNumber: e.target.value })}
-                                    placeholder="+237612345678"
-                                />
-                            </div>
+                            {integration.provider === 'ORANGE' && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">API Client ID</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.accountId}
+                                            onChange={(e) => setIntegration({ ...integration, accountId: e.target.value })}
+                                            placeholder="Client ID Orange API"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Disponible sur le portail développeur Orange</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">API Secret</label>
+                                        <input
+                                            type="password"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={integration.authToken}
+                                            onChange={(e) => setIntegration({ ...integration, authToken: e.target.value })}
+                                            placeholder={integration.exists ? '••••••••••••••••' : 'Secret API Orange'}
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Le secret est chiffré avant stockage.</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1 flex items-center gap-1">
+                                            <Phone className="w-4 h-4" />
+                                            Sender ID / Numéro d'envoi
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={integration.phoneNumber}
+                                            onChange={(e) => setIntegration({ ...integration, phoneNumber: e.target.value })}
+                                            placeholder="MEDLAB ou +237XXXXXXXXX"
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Nom d'expéditeur ou numéro court</p>
+                                    </div>
+                                </>
+                            )}
 
-                            {/* Channel Toggles */}
+                            {/* Channel Toggles - Dynamic based on provider */}
                             <div className="border-t pt-4">
                                 <p className="font-medium mb-3">{t('integrations.channels') || 'Canaux activés'}</p>
                                 <div className="space-y-3">
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={integration.smsEnabled}
-                                            onChange={(e) => setIntegration({ ...integration, smsEnabled: e.target.checked })}
-                                            className="w-4 h-4 accent-blue-600"
-                                        />
-                                        <span>SMS</span>
-                                    </label>
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={integration.whatsappEnabled}
-                                            onChange={(e) => setIntegration({ ...integration, whatsappEnabled: e.target.checked })}
-                                            className="w-4 h-4 accent-green-600"
-                                        />
-                                        <span>WhatsApp</span>
-                                    </label>
+                                    {/* SMS toggle - Available for Twilio and Orange */}
+                                    {integration.provider !== 'META' ? (
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={integration.smsEnabled}
+                                                onChange={(e) => setIntegration({ ...integration, smsEnabled: e.target.checked })}
+                                                className="w-4 h-4 accent-blue-600"
+                                            />
+                                            <span>SMS</span>
+                                        </label>
+                                    ) : (
+                                        <label className="flex items-center gap-3 cursor-not-allowed opacity-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={false}
+                                                disabled
+                                                className="w-4 h-4"
+                                            />
+                                            <span>SMS</span>
+                                            <span className="text-xs text-muted-foreground">(Non disponible avec Meta)</span>
+                                        </label>
+                                    )}
+
+                                    {/* WhatsApp toggle - Available for Twilio and Meta */}
+                                    {integration.provider !== 'ORANGE' ? (
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={integration.whatsappEnabled}
+                                                onChange={(e) => setIntegration({ ...integration, whatsappEnabled: e.target.checked })}
+                                                className="w-4 h-4 accent-green-600"
+                                            />
+                                            <span>WhatsApp</span>
+                                        </label>
+                                    ) : (
+                                        <label className="flex items-center gap-3 cursor-not-allowed opacity-50">
+                                            <input
+                                                type="checkbox"
+                                                checked={false}
+                                                disabled
+                                                className="w-4 h-4"
+                                            />
+                                            <span>WhatsApp</span>
+                                            <span className="text-xs text-muted-foreground">(Non disponible avec Orange)</span>
+                                        </label>
+                                    )}
                                 </div>
                             </div>
 
@@ -863,597 +1033,217 @@ export function Settings() {
                                     {t('integrations.testConnection') || 'Tester'}
                                 </Button>
                             </div>
-                        </div>
-                    ),
-                },
-                // Modules & Licences Tab
-                {
-                    id: 'modules',
-                    label: t('settings.tabs.modules') || 'Modules & Licences',
-                    content: (
-                        <div className="space-y-8">
-                            {/* License Activation */}
-                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-100">
-                                <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                                    <Key className="w-5 h-5 text-blue-600" />
-                                    {t('modules.activate.title') || 'Activer un module'}
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    {t('modules.activate.description') || 'Saisissez votre code de licence pour activer des fonctionnalités premium'}
-                                </p>
-                                <div className="flex gap-3">
-                                    <Input
-                                        value={licenseCode}
-                                        onChange={(e) => setLicenseCode(e.target.value)}
-                                        placeholder={t('modules.activate.placeholder') || 'Ex: SYNC-2026-X'}
-                                        className="flex-1"
-                                    />
-                                    <Button
-                                        onClick={handleActivateLicense}
-                                        disabled={activatingLicense || !licenseCode.trim()}
-                                        className="bg-blue-600 hover:bg-blue-700"
-                                    >
-                                        {activatingLicense ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                        {t('modules.activate.button') || 'Activer'}
-                                    </Button>
-                                </div>
+
+                            {/* Separator - Email Configuration */}
+                            <div className="border-t pt-6 mt-6">
+                                <h3 className="font-semibold text-lg mb-4">Configuration Email (SMTP)</h3>
                             </div>
 
-                            {/* Politique d'Archivage & Rétention */}
-                            <div className={`rounded-lg p-6 border-2 ${maxRetentionDays > 60
-                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
-                                : 'bg-gray-50 border-gray-200'}`}>
-                                <div className="flex items-start gap-4 mb-4">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${maxRetentionDays > 60
-                                        ? 'bg-green-500' : 'bg-gray-400'}`}>
-                                        {maxRetentionDays > 60
-                                            ? <Shield className="w-6 h-6 text-white" />
-                                            : <Archive className="w-6 h-6 text-white" />}
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="font-semibold text-lg flex items-center gap-2">
-                                            Politique d'Archivage & Rétention
-                                            {maxRetentionDays > 60 && (
-                                                <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">
-                                                    Coffre-fort Activé ✅
-                                                </span>
-                                            )}
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            {maxRetentionDays > 60
-                                                ? 'Vos données bénéficient d\'une rétention longue durée conforme aux exigences réglementaires.'
-                                                : 'Offre Standard - Archivage limité. Activez une extension pour conserver vos dossiers plus longtemps.'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Current Retention Display */}
-                                <div className="bg-white rounded-lg p-4 border mb-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">Conservation actuelle</p>
-                                            <p className="text-3xl font-bold text-gray-900">
-                                                {maxRetentionDays} <span className="text-lg font-normal text-muted-foreground">jours</span>
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            {maxRetentionDays <= 60 && (
-                                                <span className="inline-flex items-center gap-1.5 text-sm text-amber-700 bg-amber-100 px-3 py-1.5 rounded-full">
-                                                    <AlertTriangle className="w-4 h-4" />
-                                                    Offre Standard
-                                                </span>
-                                            )}
-                                            {maxRetentionDays >= 365 && maxRetentionDays < 1825 && (
-                                                <span className="inline-flex items-center gap-1.5 text-sm text-blue-700 bg-blue-100 px-3 py-1.5 rounded-full">
-                                                    <Shield className="w-4 h-4" />
-                                                    Archive 1 an
-                                                </span>
-                                            )}
-                                            {maxRetentionDays >= 1825 && maxRetentionDays < 3650 && (
-                                                <span className="inline-flex items-center gap-1.5 text-sm text-green-700 bg-green-100 px-3 py-1.5 rounded-full">
-                                                    <Shield className="w-4 h-4" />
-                                                    Coffre-fort 5 ans
-                                                </span>
-                                            )}
-                                            {maxRetentionDays >= 3650 && (
-                                                <span className="inline-flex items-center gap-1.5 text-sm text-purple-700 bg-purple-100 px-3 py-1.5 rounded-full">
-                                                    <Shield className="w-4 h-4" />
-                                                    Coffre-fort 10 ans
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Archive License Activation */}
-                                <div className="space-y-3">
-                                    <label className="block text-sm font-medium">
-                                        Clé d'extension d'archivage
-                                    </label>
-                                    <div className="flex gap-3">
-                                        <Input
-                                            value={archiveLicenseCode}
-                                            onChange={(e) => setArchiveLicenseCode(e.target.value.toUpperCase())}
-                                            placeholder="Ex: ARCH-5Y-2026 ou DEMO-ARCHIVE-5Y"
-                                            className="flex-1 font-mono"
-                                        />
-                                        <Button
-                                            onClick={handleActivateArchiveLicense}
-                                            disabled={activatingArchiveLicense || !archiveLicenseCode.trim()}
-                                            className={maxRetentionDays > 60
-                                                ? 'bg-green-600 hover:bg-green-700'
-                                                : 'bg-blue-600 hover:bg-blue-700'}
-                                        >
-                                            {activatingArchiveLicense ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                            Activer l'extension
-                                        </Button>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Codes disponibles: <code className="bg-gray-100 px-1 rounded">DEMO-ARCHIVE-5Y</code> (5 ans),
-                                        <code className="bg-gray-100 px-1 ml-1 rounded">DEMO-ARCHIVE-10Y</code> (10 ans)
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Modules Grid */}
-                            <div>
-                                <h3 className="font-semibold text-lg mb-4">
-                                    {t('modules.available') || 'Modules Disponibles'}
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Auto-Sync Module */}
-                                    {(() => {
-                                        const autoSyncActive = modules.find(m => m.id === 'AUTO_SYNC')?.active ?? false;
-                                        return (
-                                            <div className={`p-5 rounded-lg border-2 ${autoSyncActive ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${autoSyncActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                                            <Upload className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-medium">{t('modules.autoSync.title') || 'Auto-Sync'}</h4>
-                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${autoSyncActive ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
-                                                                {autoSyncActive ? 'Actif' : 'Inactif'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <p className="text-sm text-muted-foreground mb-4">
-                                                    {t('modules.autoSync.description') || 'Synchronisation Windows avec SIL. Téléversement automatique des résultats PDF.'}
-                                                </p>
-                                                {autoSyncActive && (
-                                                    <div className="space-y-4 mt-4">
-                                                        {/* Generate Key or Display Key */}
-                                                        {!syncApiKey ? (
-                                                            <div className="p-4 border rounded-lg bg-amber-50 border-amber-200">
-                                                                <p className="text-sm text-amber-800 mb-3">
-                                                                    Aucune clé de connexion configurée. Générez une clé pour permettre à l'automate Windows de se connecter.
-                                                                </p>
-                                                                <Button
-                                                                    onClick={handleGenerateSyncKey}
-                                                                    disabled={generatingKey}
-                                                                    className="bg-blue-600 hover:bg-blue-700"
-                                                                >
-                                                                    {generatingKey ? (
-                                                                        <>
-                                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                            Génération...
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Key className="w-4 h-4 mr-2" />
-                                                                            Générer une clé de connexion
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                {/* API Key Display */}
-                                                                <div className="space-y-2">
-                                                                    <Label className="text-xs text-muted-foreground">{t('modules.apiKey') || 'Clé API'}</Label>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <code className="flex-1 text-xs bg-gray-100 px-3 py-2 rounded border font-mono truncate">
-                                                                            {showApiKey ? syncApiKey : '••••••••••••••••••••••••••••••••'}
-                                                                        </code>
-                                                                        <Button
-                                                                            onClick={() => setShowApiKey(!showApiKey)}
-                                                                            variant="ghost"
-                                                                            className="h-8 px-2"
-                                                                            title={showApiKey ? 'Masquer' : 'Révéler'}
-                                                                        >
-                                                                            {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                                        </Button>
-                                                                        <Button
-                                                                            onClick={() => copyToClipboard(syncApiKey)}
-                                                                            variant="ghost"
-                                                                            className="h-8 px-2"
-                                                                        >
-                                                                            <Copy className="w-4 h-4" />
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Bot Endpoint */}
-                                                                <div className="space-y-2">
-                                                                    <Label className="text-xs text-muted-foreground">{t('modules.syncEndpoint') || 'Point de terminaison Bot'}</Label>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <code className="flex-1 text-xs bg-gray-100 px-3 py-2 rounded border font-mono truncate">
-                                                                            POST {window.location.origin}/api/sync/bot
-                                                                        </code>
-                                                                        <Button
-                                                                            onClick={() => copyToClipboard(`${window.location.origin}/api/sync/bot`)}
-                                                                            variant="ghost"
-                                                                            className="h-8 px-2"
-                                                                        >
-                                                                            <Copy className="w-4 h-4" />
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Health Check Endpoint */}
-                                                                <div className="space-y-2">
-                                                                    <Label className="text-xs text-muted-foreground">{t('modules.healthEndpoint') || 'Health Check'}</Label>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <code className="flex-1 text-xs bg-gray-100 px-3 py-2 rounded border font-mono truncate">
-                                                                            GET {window.location.origin}/api/sync/health
-                                                                        </code>
-                                                                        <Button
-                                                                            onClick={() => copyToClipboard(`${window.location.origin}/api/sync/health`)}
-                                                                            variant="ghost"
-                                                                            className="h-8 px-2"
-                                                                        >
-                                                                            <Copy className="w-4 h-4" />
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {t('modules.autoSync.downloadBot') || 'Utilisez l\'en-tête x-api-key pour l\'authentification.'}
-                                                                </p>
-
-                                                                {/* Revoke Button */}
-                                                                <div className="pt-2 border-t">
-                                                                    <Button
-                                                                        onClick={handleRevokeSyncKey}
-                                                                        disabled={revokingKey}
-                                                                        variant="ghost"
-                                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                    >
-                                                                        {revokingKey ? (
-                                                                            <>
-                                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                                                Révocation...
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                <Trash2 className="w-4 h-4 mr-2" />
-                                                                                Révoquer la clé
-                                                                            </>
-                                                                        )}
-                                                                    </Button>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Archive Module */}
-                                    {(() => {
-                                        const archiveActive = modules.find(m => m.id === 'LONG_TERM_ARCHIVE')?.active ?? false;
-                                        return (
-                                            <div className={`p-5 rounded-lg border-2 ${archiveActive ? 'border-green-300 bg-green-50' : 'border-gray-200 bg-white'}`}>
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${archiveActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                                            <Key className="w-5 h-5 text-white" />
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-medium">{t('modules.archive.title') || 'Archive Longue Durée'}</h4>
-                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${archiveActive ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-600'}`}>
-                                                                {archiveActive ? 'Actif' : 'Inactif'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <p className="text-sm text-muted-foreground mb-4">
-                                                    {t('modules.archive.description') || 'Conservation des résultats jusqu\'à 5 ans. Idéal pour la conformité réglementaire.'}
-                                                </p>
-                                                {archiveActive && (
-                                                    <div className="mt-4">
-                                                        <p className="text-sm text-green-700 flex items-center gap-2">
-                                                            <CheckCircle className="w-4 h-4" />
-                                                            {t('modules.archive.active') || 'Rétention étendue active'}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-
-                            {/* Windows Automation Connection - Always Visible */}
-                            <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center">
-                                        <Key className="w-5 h-5 text-white" />
+                            {/* SMTP Email Header */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+                                        <Mail className="w-5 h-5 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-lg">Connexion Automate Windows</h3>
-                                        <p className="text-sm text-muted-foreground">Clé de connexion pour le service de synchronisation PDF</p>
+                                        <h3 className="font-semibold">Serveur SMTP</h3>
+                                        <p className="text-sm text-muted-foreground">Configurez l'envoi d'emails pour les notifications</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SMTP Form Fields */}
+                            <div className="space-y-4">
+                                {/* SMTP Host */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Serveur SMTP</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2 font-mono"
+                                            value={smtp.host}
+                                            onChange={(e) => setSmtp({ ...smtp, host: e.target.value })}
+                                            placeholder="smtp.gmail.com"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Port</label>
+                                        <select
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={smtp.port}
+                                            onChange={(e) => setSmtp({ ...smtp, port: parseInt(e.target.value) })}
+                                        >
+                                            <option value={587}>587 (TLS/STARTTLS)</option>
+                                            <option value={465}>465 (SSL)</option>
+                                            <option value={25}>25 (Non sécurisé)</option>
+                                            <option value={2525}>2525 (Alternatif)</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                {!syncApiKey ? (
-                                    <div className="p-4 border rounded-lg bg-white border-amber-200">
-                                        <p className="text-sm text-gray-700 mb-3">
-                                            Aucune clé de connexion configurée. Générez une clé pour permettre à l'automate Windows de téléverser automatiquement les résultats PDF.
-                                        </p>
-                                        <Button
-                                            onClick={handleGenerateSyncKey}
-                                            disabled={generatingKey}
-                                            className="bg-blue-600 hover:bg-blue-700"
-                                        >
-                                            {generatingKey ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    Génération...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Key className="w-4 h-4 mr-2" />
-                                                    Générer une clé de connexion
-                                                </>
-                                            )}
-                                        </Button>
+                                {/* Username and Password */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Utilisateur / Email</label>
+                                        <input
+                                            type="email"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={smtp.user}
+                                            onChange={(e) => setSmtp({ ...smtp, user: e.target.value })}
+                                            placeholder="noreply@votre-labo.com"
+                                        />
                                     </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {/* API Key */}
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-medium text-gray-700">Clé API</Label>
-                                            <div className="flex items-center gap-2">
-                                                <code className="flex-1 text-xs bg-white px-3 py-2 rounded border font-mono truncate">
-                                                    {showApiKey ? syncApiKey : '••••••••••••••••••••••••••••••••'}
-                                                </code>
-                                                <Button
-                                                    onClick={() => setShowApiKey(!showApiKey)}
-                                                    variant="ghost"
-                                                    className="h-8 px-2"
-                                                    title={showApiKey ? 'Masquer' : 'Révéler'}
-                                                >
-                                                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </Button>
-                                                <Button
-                                                    onClick={() => copyToClipboard(syncApiKey)}
-                                                    variant="ghost"
-                                                    className="h-8 px-2"
-                                                    title="Copier"
-                                                >
-                                                    <Copy className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Mot de passe</label>
+                                        <input
+                                            type="password"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={smtp.password}
+                                            onChange={(e) => setSmtp({ ...smtp, password: e.target.value })}
+                                            placeholder={smtp.exists ? '••••••••••••••••' : 'Mot de passe SMTP'}
+                                        />
+                                        <p className="text-xs text-muted-foreground mt-1">Pour Gmail, utilisez un mot de passe d'application</p>
+                                    </div>
+                                </div>
 
-                                        {/* Endpoint URL */}
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-medium text-gray-700">Point de terminaison (pour l'automate)</Label>
-                                            <div className="flex items-center gap-2">
-                                                <code className="flex-1 text-xs bg-white px-3 py-2 rounded border font-mono truncate">
-                                                    POST {window.location.origin}/api/sync/bot
-                                                </code>
-                                                <Button
-                                                    onClick={() => copyToClipboard(`${window.location.origin}/api/sync/bot`)}
-                                                    variant="ghost"
-                                                    className="h-8 px-2"
-                                                    title="Copier"
-                                                >
-                                                    <Copy className="w-4 h-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
+                                {/* From Name and From Email */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Nom d'expéditeur</label>
+                                        <input
+                                            type="text"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={smtp.fromName}
+                                            onChange={(e) => setSmtp({ ...smtp, fromName: e.target.value })}
+                                            placeholder="Laboratoire MedLab"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Email d'expédition</label>
+                                        <input
+                                            type="email"
+                                            className="w-full border rounded-lg px-3 py-2"
+                                            value={smtp.fromEmail}
+                                            onChange={(e) => setSmtp({ ...smtp, fromEmail: e.target.value })}
+                                            placeholder="resultats@votre-labo.com"
+                                        />
+                                    </div>
+                                </div>
 
-                                        <p className="text-xs text-muted-foreground">
-                                            L'automate doit envoyer la clé dans l'en-tête HTTP: <code className="bg-gray-100 px-1 rounded">x-api-key: VOTRE_CLE</code>
-                                        </p>
+                                {/* TLS Toggle */}
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <p className="font-medium">Connexion sécurisée (TLS/SSL)</p>
+                                        <p className="text-sm text-muted-foreground">Recommandé pour les ports 587 et 465</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={smtp.secure}
+                                            onChange={(e) => setSmtp({ ...smtp, secure: e.target.checked })}
+                                            className="sr-only peer"
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
 
-                                        {/* Revoke */}
-                                        <div className="pt-3 border-t border-blue-200">
-                                            <Button
-                                                onClick={handleRevokeSyncKey}
-                                                disabled={revokingKey}
-                                                variant="ghost"
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                            >
-                                                {revokingKey ? (
-                                                    <>
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Révocation...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Trash2 className="w-4 h-4 mr-2" />
-                                                        Révoquer la clé
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </div>
+                                {/* Test Status */}
+                                {smtp.testStatus && (
+                                    <div className={`flex items-center gap-2 p-3 rounded-lg ${smtp.testStatus === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                                        {smtp.testStatus === 'success' ? (
+                                            <CheckCircle className="w-5 h-5" />
+                                        ) : (
+                                            <XCircle className="w-5 h-5" />
+                                        )}
+                                        <span>
+                                            {smtp.testStatus === 'success'
+                                                ? 'Email de test envoyé avec succès'
+                                                : 'Échec de l\'envoi du test'}
+                                        </span>
                                     </div>
                                 )}
-                            </div>
 
-                            {/* Help Text */}
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                                {/* SMTP Action Buttons */}
                                 <div className="flex gap-3">
-                                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                                    <div>
-                                        <h4 className="font-medium text-amber-800">{t('modules.help.title') || 'Besoin d\'une licence?'}</h4>
-                                        <p className="text-sm text-amber-700 mt-1">
-                                            {t('modules.help.description') || 'Contactez votre représentant commercial ou visitez le portail partenaire pour obtenir un code de licence.'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ),
-                },
-                {
-                    id: 'apparence',
-                    label: 'Apparence',
-                    content: (
-                        <div className="space-y-6 max-w-xl">
-                            {/* Header */}
-                            <div className="bg-white border rounded-lg p-6">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                                        <Palette className="w-5 h-5 text-white" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold">Marque Blanche</h3>
-                                        <p className="text-sm text-muted-foreground">Personnalisez l'apparence de vos pages patient</p>
-                                    </div>
-                                </div>
-
-                                {/* Color Picker */}
-                                <div className="space-y-4">
-                                    <div>
-                                        <Label className="block mb-2">Couleur principale</Label>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="color"
-                                                value={brandColor}
-                                                onChange={(e) => setBrandColor(e.target.value)}
-                                                className="w-12 h-12 rounded-lg border cursor-pointer"
-                                            />
-                                            <Input
-                                                value={brandColor}
-                                                onChange={(e) => setBrandColor(e.target.value)}
-                                                placeholder="#3B82F6"
-                                                className="w-32 font-mono"
-                                            />
-                                            <span className="text-sm text-muted-foreground">
-                                                Utilisé pour les boutons et accents
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Logo Upload */}
-                                    <div>
-                                        <Label className="block mb-2">Logo du laboratoire</Label>
-                                        <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                                            {brandLogoUrl ? (
-                                                <div className="space-y-3">
-                                                    <img
-                                                        src={brandLogoUrl || ''}
-                                                        alt="Logo"
-                                                        className="max-h-20 mx-auto object-contain"
-                                                    />
-                                                    <p className="text-sm text-green-600 flex items-center justify-center gap-1">
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        Logo configuré
-                                                    </p>
-                                                    <label className="cursor-pointer">
-                                                        <span className="text-sm text-blue-600 hover:underline">
-                                                            Changer le logo
-                                                        </span>
-                                                        <input
-                                                            type="file"
-                                                            accept="image/png,image/jpeg,image/webp"
-                                                            onChange={handleLogoUpload}
-                                                            className="hidden"
-                                                        />
-                                                    </label>
-                                                </div>
-                                            ) : (
-                                                <label className="cursor-pointer block">
-                                                    <Upload className="w-10 h-10 mx-auto text-gray-400 mb-2" />
-                                                    <p className="text-sm text-gray-600">
-                                                        {uploadingLogo ? (
-                                                            <span className="flex items-center justify-center gap-2">
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                                Upload en cours...
-                                                            </span>
-                                                        ) : (
-                                                            <>Cliquez ou glissez votre logo ici</>
-                                                        )}
-                                                    </p>
-                                                    <p className="text-xs text-gray-400 mt-1">PNG, JPG ou WebP (max 2 Mo)</p>
-                                                    <input
-                                                        type="file"
-                                                        accept="image/png,image/jpeg,image/webp"
-                                                        onChange={handleLogoUpload}
-                                                        className="hidden"
-                                                        disabled={uploadingLogo}
-                                                    />
-                                                </label>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Slug */}
-                                    <div>
-                                        <Label className="block mb-2">Identifiant URL (slug)</Label>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-muted-foreground">medlab.cm/</span>
-                                            <Input
-                                                value={tenantSlug}
-                                                onChange={(e) => setTenantSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                                                placeholder="mon-labo"
-                                                className="flex-1"
-                                            />
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            URL personnalisée pour vos patients
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Save Button */}
-                                <div className="mt-6 pt-4 border-t">
-                                    <Button onClick={saveBranding} disabled={savingBranding}>
-                                        {savingBranding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                        Enregistrer les modifications
+                                    <Button
+                                        onClick={async () => {
+                                            setSavingSmtp(true);
+                                            try {
+                                                await api.put('/api/integrations/smtp', {
+                                                    smtpHost: smtp.host,
+                                                    smtpPort: smtp.port,
+                                                    smtpUser: smtp.user,
+                                                    smtpPassword: smtp.password,
+                                                    smtpFromName: smtp.fromName,
+                                                    smtpFromEmail: smtp.fromEmail,
+                                                    smtpSecure: smtp.secure,
+                                                });
+                                                setSmtp(prev => ({ ...prev, exists: true }));
+                                                addToast('Configuration SMTP enregistrée', 'success');
+                                            } catch (err) {
+                                                addToast('Erreur lors de l\'enregistrement', 'error');
+                                            } finally {
+                                                setSavingSmtp(false);
+                                            }
+                                        }}
+                                        disabled={savingSmtp}
+                                        className="flex-1"
+                                    >
+                                        {savingSmtp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                        Enregistrer
+                                    </Button>
+                                    <Button
+                                        onClick={async () => {
+                                            if (!testEmailAddress) {
+                                                addToast('Veuillez entrer une adresse email de test', 'error');
+                                                return;
+                                            }
+                                            setTestingSmtp(true);
+                                            try {
+                                                const res = await api.post('/api/integrations/smtp/test', {
+                                                    to: testEmailAddress,
+                                                });
+                                                const data = await res.json();
+                                                setSmtp(prev => ({ ...prev, testStatus: data.success ? 'success' : 'failed' }));
+                                                if (data.success) {
+                                                    addToast('Email de test envoyé', 'success');
+                                                } else {
+                                                    addToast(data.message || 'Échec du test', 'error');
+                                                }
+                                            } catch (err) {
+                                                setSmtp(prev => ({ ...prev, testStatus: 'failed' }));
+                                                addToast('Erreur lors du test', 'error');
+                                            } finally {
+                                                setTestingSmtp(false);
+                                            }
+                                        }}
+                                        disabled={testingSmtp || !smtp.host}
+                                        variant="outline"
+                                        className="gap-2"
+                                    >
+                                        {testingSmtp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                        Tester
                                     </Button>
                                 </div>
-                            </div>
 
-                            {/* Live Preview */}
-                            <div className="bg-white border rounded-lg p-6">
-                                <h4 className="font-medium mb-4">Aperçu du bouton patient</h4>
-                                <div className="bg-gray-100 rounded-lg p-6 flex flex-col items-center gap-4">
-                                    {brandLogoUrl && (
-                                        <img
-                                            src={brandLogoUrl || ''}
-                                            alt="Logo Preview"
-                                            className="max-h-12 object-contain"
-                                        />
-                                    )}
-                                    <button
-                                        style={{ backgroundColor: brandColor }}
-                                        className="px-6 py-3 text-white rounded-lg font-medium shadow-lg transition-transform hover:scale-105"
-                                    >
-                                        Accéder à mes résultats
-                                    </button>
-                                    <p className="text-xs text-gray-500">
-                                        Tel que vu par vos patients
-                                    </p>
+                                {/* Test Email Input */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="email"
+                                        className="flex-1 border rounded-lg px-3 py-2"
+                                        value={testEmailAddress}
+                                        onChange={(e) => setTestEmailAddress(e.target.value)}
+                                        placeholder="Adresse email pour le test..."
+                                    />
                                 </div>
                             </div>
-                        </div>
-                    ),
-                },
-                // Payment Tab - Multi-Provider
-                {
-                    id: 'payment',
-                    label: 'Paiements',
-                    content: (
-                        <div className="space-y-6 max-w-xl">
-                            {/* Header */}
+
+                            {/* Separator */}
+                            <div className="border-t pt-6 mt-6">
+                                <h3 className="font-semibold text-lg mb-4">Paiements - Mobile Money</h3>
+                            </div>
+
+                            {/* Mobile Money Header */}
                             <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
@@ -1469,7 +1259,7 @@ export function Settings() {
                                 </p>
                             </div>
 
-                            {/* Provider Selection */}
+                            {/* Payment Provider Selection */}
                             <div className="bg-white border rounded-lg p-6 space-y-4">
                                 <h4 className="font-medium">Opérateur de paiement</h4>
                                 <div className="grid grid-cols-3 gap-3">
@@ -1482,8 +1272,8 @@ export function Settings() {
                                             key={provider.id}
                                             onClick={() => { setPaymentProvider(provider.id); setPaymentTestStatus(null); }}
                                             className={`p-4 rounded-lg border-2 transition-all text-left ${paymentProvider === provider.id
-                                                    ? 'border-orange-500 bg-orange-50'
-                                                    : 'border-gray-200 hover:border-gray-300'
+                                                ? 'border-orange-500 bg-orange-50'
+                                                : 'border-gray-200 hover:border-gray-300'
                                                 }`}
                                         >
                                             <div className={`w-10 h-10 ${provider.color} rounded-lg flex items-center justify-center text-white font-bold text-sm mb-2`}>
@@ -1573,7 +1363,7 @@ export function Settings() {
                                 </div>
                             )}
 
-                            {/* Test Status */}
+                            {/* Payment Test Status */}
                             {paymentTestStatus && (
                                 <div className={`flex items-center gap-2 p-3 rounded-lg ${paymentTestStatus === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
                                     {paymentTestStatus === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
@@ -1581,7 +1371,7 @@ export function Settings() {
                                 </div>
                             )}
 
-                            {/* Action Buttons */}
+                            {/* Payment Action Buttons */}
                             <div className="flex gap-3">
                                 <Button
                                     onClick={async () => {
@@ -1616,7 +1406,7 @@ export function Settings() {
                                     className="flex-1 bg-orange-600 hover:bg-orange-700"
                                 >
                                     {savingPayment ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                    Enregistrer
+                                    Enregistrer Paiements
                                 </Button>
                                 <Button
                                     onClick={async () => {
@@ -1643,7 +1433,7 @@ export function Settings() {
                                 </Button>
                             </div>
 
-                            {/* Info Box */}
+                            {/* Payment Info Box */}
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
                                 <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                                 <div className="text-sm text-blue-800">
