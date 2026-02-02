@@ -42,6 +42,8 @@ import PricingManager from './pages/admin/PricingManager.tsx';
 import SuperAdminDashboard from './pages/admin/SuperAdminDashboard.tsx';
 import { SystemAlerts } from './pages/admin/SystemAlerts.tsx';
 import { FinancialDashboard } from './pages/admin/FinancialDashboard.tsx';
+import { GlobalUsers } from './pages/admin/GlobalUsers.tsx';
+import { AuditLogs } from './pages/admin/AuditLogs.tsx';
 
 function DashboardRoutes() {
   return (
@@ -54,10 +56,12 @@ function DashboardRoutes() {
         <Route path="super-admin" element={<SuperAdminDashboard />} />
         <Route path="tenants" element={<TenantsList />} />
         <Route path="users" element={<UsersList />} />
+        <Route path="users-directory" element={<GlobalUsers />} />
         <Route path="platform" element={<PlatformSettings />} />
         <Route path="pricing-manager" element={<PricingManager />} />
         <Route path="system-alerts" element={<SystemAlerts />} />
         <Route path="financial" element={<FinancialDashboard />} />
+        <Route path="audit" element={<AuditLogs />} />
 
         {/* Lab Admin Routes */}
         <Route path="team" element={<Team />} />
@@ -75,8 +79,6 @@ function DashboardRoutes() {
         {/* Technician Routes */}
         <Route path="history" element={<ResultsHistory />} />
         <Route path="upload" element={<div className="bg-white p-6 rounded-lg shadow"><h2 className="text-xl font-bold mb-4">New Result</h2><SmartUploadForm /></div>} />
-
-        <Route path="audit" element={<div className="text-muted-foreground">Audit Logs (Coming Soon)</div>} />
 
         {/* Default redirect based on role */}
         <Route index element={<DashboardRedirect />} />

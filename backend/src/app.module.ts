@@ -35,6 +35,8 @@ import { TeamModule } from './team/team.module';
 import { PricingModule } from './pricing/pricing.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { DemoDataModule } from './admin/demo-data.module';
+import { OcrConfigModule } from './ocr-config/ocr-config.module';
 
 @Module({
   imports: [
@@ -83,6 +85,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     PricingModule,
     AlertsModule,
     SubscriptionsModule,
+    DemoDataModule,
+    OcrConfigModule,
   ],
   controllers: [AppController, PlatformConfigController],
   providers: [

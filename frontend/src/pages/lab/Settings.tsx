@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Button, Input, Label } from '@/components/ui-basic';
 import { Tabs, Modal, ProgressBar, useToast } from '@/components/ui-dashboard';
 import { useAuth } from '@/context/AuthContext';
-import { Key, Copy, Trash2, AlertTriangle, Upload, MessageSquare, Phone, CheckCircle, XCircle, Loader2, Eye, EyeOff, Shield, Archive, Palette, Wallet, Smartphone, Mail } from 'lucide-react';
+import { Key, Copy, Trash2, AlertTriangle, Upload, MessageSquare, Phone, CheckCircle, XCircle, Loader2, Eye, EyeOff, Shield, Archive, Palette, Wallet, Smartphone, Mail, Stethoscope } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { api } from '@/lib/api';
 
@@ -41,6 +41,10 @@ export function Settings() {
     const [savingBranding, setSavingBranding] = React.useState(false);
     const [uploadingLogo, setUploadingLogo] = React.useState(false);
 
+    // Prescripteurs (Médecins Prescripteurs pour BI)
+    const [prescribers, setPrescribers] = React.useState<string[]>([]);
+    const [newPrescriber, setNewPrescriber] = React.useState('');
+
     React.useEffect(() => {
         // Fetch Tenant Settings
         fetch('/api/tenants/me', {
@@ -69,6 +73,10 @@ export function Settings() {
                 if (data.whatsappBusinessAccountId) {
                     setWhatsappBusinessAccountId(data.whatsappBusinessAccountId);
                 }
+                // Prescripteurs
+                if (data.prescribers && Array.isArray(data.prescribers)) {
+                    setPrescribers(data.prescribers);
+                }
             })
             .catch(err => console.error(err));
     }, []);
@@ -95,7 +103,8 @@ export function Settings() {
                 body: JSON.stringify({
                     name: labName,
                     address: labAddress,
-                    configuredRetentionDays: configuredRetentionDays
+                    configuredRetentionDays: configuredRetentionDays,
+                    prescribers: prescribers
                 }),
             });
 
@@ -740,6 +749,63 @@ export function Settings() {
                                         Tel que vu par vos patients
                                     </p>
                                 </div>
+                            </div>
+
+                            {/* Section Médecins Prescripteurs */}
+                            <div className="bg-white border rounded-lg p-6">
+                                <h3 className="font-medium mb-4 flex items-center gap-2">
+                                    <Stethoscope className="w-5 h-5 text-purple-500" />
+                                    Médecins Prescripteurs
+                                </h3>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    Configurez la liste des médecins prescripteurs qui peuvent être sélectionnés lors de l'upload des résultats.
+                                </p>
+
+                                {/* Formulaire d'ajout */}
+                                <div className="flex gap-2 mb-4">
+                                    <Input
+                                        value={newPrescriber}
+                                        onChange={(e) => setNewPrescriber(e.target.value)}
+                                        placeholder="Ex: Dr. Dupont, Dr. Martin"
+                                        className="flex-1"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && newPrescriber.trim()) {
+                                                setPrescribers([...prescribers, newPrescriber.trim()]);
+                                                setNewPrescriber('');
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        onClick={() => {
+                                            if (newPrescriber.trim()) {
+                                                setPrescribers([...prescribers, newPrescriber.trim()]);
+                                                setNewPrescriber('');
+                                            }
+                                        }}
+                                        variant="outline"
+                                    >
+                                        Ajouter
+                                    </Button>
+                                </div>
+
+                                {/* Liste des prescripteurs */}
+                                {prescribers.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {prescribers.map((name, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                                                <span className="text-sm">{name}</span>
+                                                <button
+                                                    onClick={() => setPrescribers(prescribers.filter((_, i) => i !== idx))}
+                                                    className="text-red-500 hover:text-red-700 p-1"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-gray-400 italic">Aucun prescripteur configuré</p>
+                                )}
                             </div>
 
                             <div className="flex gap-3">
@@ -1443,6 +1509,97 @@ export function Settings() {
                                         {paymentProvider === 'ORANGE_MONEY' && <>Inscrivez-vous sur Orange Developer Portal (nécessite KYC)</>}
                                         {paymentProvider === 'MTN_MOMO' && <>Créez un compte sur <a href="https://momodeveloper.mtn.com" target="_blank" rel="noopener noreferrer" className="underline">momodeveloper.mtn.com</a></>}
                                     </p>
+                                </div>
+                            </div>
+                        </div>
+                    ),
+                },
+                {
+                    id: 'api-docs',
+                    label: 'Documentation API',
+                    content: (
+                        <div className="space-y-6 max-w-3xl">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                                <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                <div className="text-sm text-blue-800">
+                                    <p className="font-medium">Pour connecter votre système d'information (LIS/SIL)</p>
+                                    <p className="mt-1">
+                                        Activez le module <strong>Auto-Sync Windows</strong> via l'onglet Modules et générez une clé API.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* JSON Format */}
+                            <div className="bg-white border rounded-lg p-6">
+                                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                                    📄 Format JSON
+                                </h3>
+                                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                                    {`{
+  "format": "JSON",
+  "data": {
+    "patient": {
+      "name": "Jean Dupont",
+      "phone": "+237699123456",
+      "dateOfBirth": "15/03/1985"
+    },
+    "results": [
+      {
+        "test": "Glycémie à jeun",
+        "value": "1.05",
+        "unit": "g/L",
+        "range": "0.70 - 1.10",
+        "isAbnormal": false
+      }
+    ]
+  }
+}`}
+                                </pre>
+                            </div>
+
+                            {/* HL7 Format */}
+                            <div className="bg-white border rounded-lg p-6">
+                                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                                    🔗 Format HL7 (ORU^R01)
+                                </h3>
+                                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                                    {`{
+  "format": "HL7",
+  "data": "MSH|^~\\\\&|LIS|LABO|APP|MEDLAB|...\\r
+PID|1||PAT001^^^LABO||Dupont^Jean||19850315|M|||...\\r
+OBX|1|NM|GLU^Glycémie^L||1.05|g/L|0.70-1.10|N|||F"
+}`}
+                                </pre>
+                                <p className="text-sm text-muted-foreground mt-3">
+                                    Segments supportés: MSH, PID, OBX. Le message HL7 doit être échappé en JSON.
+                                </p>
+                            </div>
+
+                            {/* Response */}
+                            <div className="bg-white border rounded-lg p-6">
+                                <h3 className="font-semibold mb-3">Réponse attendue</h3>
+                                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                                    {`{
+  "status": "success",
+  "documentId": "uuid-du-document",
+  "message": "Document created and notification sent"
+}`}
+                                </pre>
+                            </div>
+
+                            {/* Endpoint Info */}
+                            <div className="bg-gray-50 border rounded-lg p-4 space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium">Endpoint</span>
+                                    <code className="text-sm bg-white px-2 py-1 rounded border">/api/connect/ingest</code>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium">Méthode</span>
+                                    <span className="text-sm font-mono">POST</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium">Authentification</span>
+                                    <code className="text-sm bg-white px-2 py-1 rounded border">X-API-Key: votre_clé</code>
                                 </div>
                             </div>
                         </div>

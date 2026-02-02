@@ -7,7 +7,7 @@
     "nav": {
         "tenants": "Laboratoires Partenaires",
         "users": "Utilisateurs & Personnel",
-        "directory": "Annuaire",
+        "directory": "Équipe",
         "platform": "Paramètres Plateforme",
         "audit": "Journaux d'Audit",
         "team": "Mon Équipe",
@@ -26,7 +26,11 @@
         "tenant": "Laboratoire",
         "marketplace": "Marketplace",
         "integration": "Intégration API",
-        "analytics": "Analyse BI"
+        "analytics": "Analyse BI",
+        "systemAlerts": "Alertes Système",
+        "financial": "Gestion Financière",
+        "pricing": "Tarification",
+        "ocrConfig": "Configuration OCR"
     },
     "auth": {
         "signInTitle": "Connexion Partenaire",

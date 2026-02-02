@@ -1,16 +1,20 @@
 
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, BadRequestException, Request } from '@nestjs/common';
 import { JwtAuthGuard, RolesGuard, Roles } from '../../auth/guards';
 import { PrismaService } from '../../prisma.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UserStatus } from '@prisma/client';
+import { AuditService } from '../../audit/audit.service';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPER_ADMIN')
 export class AdminUsersController {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private auditService: AuditService
+    ) { }
 
     @Get()
     async findAll(@Query('search') search?: string, @Query('role') role?: string) {
@@ -32,7 +36,7 @@ export class AdminUsersController {
         return this.prisma.user.findMany({
             where: {
                 ...where,
-                deletedAt: null // Only active users
+                deletedAt: null
             },
             include: {
                 tenant: { select: { id: true, name: true } }
@@ -42,12 +46,12 @@ export class AdminUsersController {
     }
 
     @Post()
-    async create(@Body() dto: CreateAdminUserDto) {
+    async create(@Body() dto: CreateAdminUserDto, @Request() req: any) {
         // Validation
         const existing = await this.prisma.user.findFirst({
             where: {
                 email: dto.email,
-                deletedAt: null // Check against active users only? Or global? Ideally global unique email.
+                deletedAt: null
             }
         });
         if (existing) throw new BadRequestException('Email already exists');
@@ -56,10 +60,10 @@ export class AdminUsersController {
             throw new BadRequestException('Tenant ID is required for non-Super Admins');
         }
 
-        const password = dto.password || Math.random().toString(36).slice(-8); // Fallback generic
+        const password = dto.password || Math.random().toString(36).slice(-8);
         const hash = await bcrypt.hash(password, 10);
 
-        return this.prisma.user.create({
+        const user = await this.prisma.user.create({
             data: {
                 email: dto.email,
                 firstName: dto.firstName,
@@ -67,13 +71,24 @@ export class AdminUsersController {
                 role: dto.role,
                 tenantId: dto.tenantId,
                 passwordHash: hash,
-                status: UserStatus.ACTIVE // Default active
+                status: UserStatus.ACTIVE
             }
         });
+
+        // Audit log
+        await this.auditService.logUserAction(
+            'USER_CREATED',
+            dto.email,
+            req.user?.id,
+            dto.tenantId,
+            user.id
+        );
+
+        return user;
     }
 
     @Patch(':id')
-    async update(@Param('id') id: string, @Body() dto: UpdateAdminUserDto) {
+    async update(@Param('id') id: string, @Body() dto: UpdateAdminUserDto, @Request() req: any) {
         const data: any = { ...dto };
 
         if (dto.password) {
@@ -81,18 +96,39 @@ export class AdminUsersController {
             delete data.password;
         }
 
-        return this.prisma.user.update({
+        const user = await this.prisma.user.update({
             where: { id },
             data
         });
+
+        // Audit log
+        await this.auditService.logUserAction(
+            'USER_UPDATED',
+            user.email,
+            req.user?.id,
+            user.tenantId || undefined,
+            user.id
+        );
+
+        return user;
     }
 
     @Delete(':id')
-    async remove(@Param('id') id: string) {
-        // Soft Delete Implementation
-        return this.prisma.user.update({
+    async remove(@Param('id') id: string, @Request() req: any) {
+        const user = await this.prisma.user.update({
             where: { id },
             data: { deletedAt: new Date(), status: UserStatus.SUSPENDED }
         });
+
+        // Audit log
+        await this.auditService.logUserAction(
+            'USER_DELETED',
+            user.email,
+            req.user?.id,
+            user.tenantId || undefined,
+            user.id
+        );
+
+        return user;
     }
 }

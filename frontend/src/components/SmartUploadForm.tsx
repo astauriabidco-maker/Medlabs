@@ -4,7 +4,7 @@ import { Button, Input, Label, Card, CardHeader, CardTitle, CardContent } from '
 import { useTranslation } from 'react-i18next';
 import { AccessCodeModal } from './AccessCodeModal';
 import * as pdfjsLib from 'pdfjs-dist';
-import { extractPdfData, ExtractedData } from '@/lib/pdf-extractor';
+import { extractPdfData, ExtractedData, OcrProgressCallback } from '@/lib/pdf-extractor';
 
 // Worker configuration
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -27,10 +27,14 @@ export function SmartUploadForm() {
     const [file, setFile] = useState<File | null>(null);
     const [dragging, setDragging] = useState(false);
     const [parsing, setParsing] = useState(false);
+    const [ocrProgress, setOcrProgress] = useState<{ percent: number; status: string } | null>(null);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [autoExtracted, setAutoExtracted] = useState<ExtractedData | null>(null);
+
+    // Liste des prescripteurs configurés par le laboratoire
+    const [prescribers, setPrescribers] = useState<string[]>([]);
 
     const [form, setForm] = useState<FormData>({
         folderRef: '',
@@ -48,6 +52,28 @@ export function SmartUploadForm() {
     const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
     const [accessCode, setAccessCode] = useState('');
 
+    // Charger la liste des prescripteurs depuis le tenant
+    React.useEffect(() => {
+        const loadPrescribers = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                const res = await fetch('/api/tenants/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.prescribers && Array.isArray(data.prescribers)) {
+                        setPrescribers(data.prescribers);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load prescribers', err);
+            }
+        };
+        loadPrescribers();
+    }, []);
+
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -61,22 +87,28 @@ export function SmartUploadForm() {
     const parsePdf = async (file: File) => {
         setParsing(true);
         setAutoExtracted(null);
+        setOcrProgress(null);
 
         try {
-            // Use the new PDF extractor for OCR
-            const extracted = await extractPdfData(file);
+            // Progress callback for OCR
+            const onProgress: OcrProgressCallback = (percent, status) => {
+                setOcrProgress({ percent, status });
+            };
+
+            // Use the new PDF extractor with OCR fallback
+            const extracted = await extractPdfData(file, onProgress);
 
             if (extracted.confidence !== 'none') {
                 setAutoExtracted(extracted);
 
-                // Auto-fill form with extracted data
+                // Auto-fill form with extracted data (SAUF prescriberName - doit être sélectionné manuellement)
                 setForm(prev => ({
                     ...prev,
                     firstName: extracted.patientFirstName || prev.firstName,
                     lastName: extracted.patientLastName || prev.lastName,
                     phone: extracted.patientPhone || prev.phone,
                     folderRef: extracted.folderRef || prev.folderRef,
-                    prescriberName: extracted.prescriberName || prev.prescriberName,
+                    // prescriberName: NE PAS auto-remplir, laissé vide pour sélection manuelle
                 }));
             }
 
@@ -308,6 +340,25 @@ export function SmartUploadForm() {
                     </div>
                 )}
 
+                {/* OCR Progress Bar */}
+                {ocrProgress && parsing && (
+                    <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
+                            <span className="text-sm font-medium text-orange-700">
+                                🔍 OCR en cours (PDF scanné détecté)
+                            </span>
+                        </div>
+                        <div className="w-full bg-orange-200 rounded-full h-2">
+                            <div
+                                className="bg-orange-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${ocrProgress.percent}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-orange-600 mt-1">{ocrProgress.status}</p>
+                    </div>
+                )}
+
                 {/* OCR Auto-extraction Badge */}
                 {autoExtracted && autoExtracted.confidence !== 'none' && (
                     <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg flex items-center gap-2">
@@ -316,6 +367,11 @@ export function SmartUploadForm() {
                             <span className="text-sm font-medium text-purple-700">
                                 ✨ {t('upload.ocr.extracted')}
                             </span>
+                            {autoExtracted.ocrUsed && (
+                                <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                                    OCR
+                                </span>
+                            )}
                             <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${autoExtracted.confidence === 'high' ? 'bg-green-100 text-green-700' :
                                 autoExtracted.confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' :
                                     'bg-gray-100 text-gray-600'
@@ -408,19 +464,27 @@ export function SmartUploadForm() {
                         </div>
                     </div>
 
-                    {/* Prescriber Name (BI Dashboard) */}
+                    {/* Prescriber Name (BI Dashboard) - Select avec liste préremplie */}
                     <div className="space-y-2">
                         <Label htmlFor="prescriberName" className="flex items-center gap-2">
                             <Stethoscope className="w-4 h-4 text-purple-500" />
                             {t('upload.prescriberName', 'Médecin Prescripteur')}
                             <span className="text-xs text-gray-400 font-normal">(Facultatif - pour statistiques)</span>
                         </Label>
-                        <Input
+                        <select
                             id="prescriberName"
                             value={form.prescriberName}
                             onChange={e => setForm({ ...form, prescriberName: e.target.value })}
-                            placeholder="Ex: Dr. Tientcheu, Dr. Mbarga"
-                        />
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        >
+                            <option value="">-- Sélectionner un prescripteur --</option>
+                            {prescribers.map((name, idx) => (
+                                <option key={idx} value={name}>{name}</option>
+                            ))}
+                        </select>
+                        {prescribers.length === 0 && (
+                            <p className="text-xs text-gray-400 italic">Aucun prescripteur configuré. Ajoutez-les dans Paramètres.</p>
+                        )}
                     </div>
 
                     {/* Payment Paywall Section */}

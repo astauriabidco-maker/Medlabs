@@ -197,25 +197,106 @@ export class SubscriptionsService {
     }
 
     /**
-     * Generate sample subscriptions for testing
+     * Generate sample subscriptions for testing - Creates demo tenants if needed
      */
     async generateSampleData() {
-        const tenants = await this.prisma.tenant.findMany({ take: 5 });
         let created = 0;
+        let payments = 0;
 
-        for (const tenant of tenants) {
-            const existing = await this.prisma.subscription.findUnique({ where: { tenantId: tenant.id } });
-            if (!existing) {
-                const plans = ['STARTER', 'PREMIUM', 'ENTERPRISE'] as const;
-                const statuses = ['TRIAL', 'ACTIVE', 'ACTIVE', 'ACTIVE'] as const;
-                const plan = plans[Math.floor(Math.random() * plans.length)];
-                const status = statuses[Math.floor(Math.random() * statuses.length)];
+        // Demo tenants to create if they don't exist
+        const demoTenants = [
+            { name: 'Labo Premium A', slug: 'labo-premium-a', plan: 'PREMIUM' as const },
+            { name: 'Labo Enterprise B', slug: 'labo-enterprise-b', plan: 'ENTERPRISE' as const },
+            { name: 'Labo Trial C', slug: 'labo-trial-c', plan: 'PREMIUM' as const, status: 'TRIAL' as const },
+        ];
 
-                await this.upsert(tenant.id, { plan, status });
+        for (const demoTenant of demoTenants) {
+            // Check if tenant exists
+            let tenant = await this.prisma.tenant.findUnique({ where: { slug: demoTenant.slug } });
+
+            if (!tenant) {
+                // Create demo tenant
+                tenant = await this.prisma.tenant.create({
+                    data: {
+                        name: demoTenant.name,
+                        slug: demoTenant.slug,
+                        niu: `NIU-${demoTenant.slug.toUpperCase()}`,
+                        smsBalance: 500,
+                        maxRetentionDays: 90,
+                        isActive: true,
+                    },
+                });
+            }
+
+            // Check if subscription exists
+            const existingSub = await this.prisma.subscription.findUnique({ where: { tenantId: tenant.id } });
+
+            if (!existingSub) {
+                const sub = await this.upsert(tenant.id, {
+                    plan: demoTenant.plan,
+                    status: demoTenant.status || 'ACTIVE'
+                });
                 created++;
+
+                // Create sample payments for active subscriptions
+                if (demoTenant.status !== 'TRIAL') {
+                    const price = demoTenant.plan === 'PREMIUM' ? 49000 : 99000;
+                    const now = new Date();
+
+                    // Create 3 months of payment history
+                    for (let i = 0; i < 3; i++) {
+                        const periodStart = new Date(now);
+                        periodStart.setMonth(periodStart.getMonth() - i - 1);
+                        const periodEnd = new Date(periodStart);
+                        periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+                        await this.prisma.subscriptionPayment.create({
+                            data: {
+                                subscriptionId: sub.id,
+                                amount: price,
+                                currency: 'XAF',
+                                status: 'SUCCESS',
+                                provider: 'MTN_MOMO',
+                                periodStart,
+                                periodEnd,
+                            },
+                        });
+                        payments++;
+                    }
+                }
             }
         }
 
-        return { created };
+        // Upgrade existing Demo Lab to PREMIUM if it's still STARTER
+        const demoLab = await this.prisma.tenant.findUnique({ where: { slug: 'demo-lab' } });
+        if (demoLab) {
+            const demoLabSub = await this.prisma.subscription.findUnique({ where: { tenantId: demoLab.id } });
+            if (demoLabSub && demoLabSub.plan === 'STARTER') {
+                await this.prisma.subscription.update({
+                    where: { id: demoLabSub.id },
+                    data: { plan: 'PREMIUM', pricePerMonth: 49000 },
+                });
+
+                // Add payment for Demo Lab
+                const now = new Date();
+                const periodEnd = new Date(now);
+                periodEnd.setMonth(periodEnd.getMonth() + 1);
+                await this.prisma.subscriptionPayment.create({
+                    data: {
+                        subscriptionId: demoLabSub.id,
+                        amount: 49000,
+                        currency: 'XAF',
+                        status: 'SUCCESS',
+                        provider: 'MTN_MOMO',
+                        periodStart: now,
+                        periodEnd,
+                    },
+                });
+                payments++;
+            }
+        }
+
+        return { created, payments };
     }
 }
+

@@ -57,14 +57,46 @@ enum IntegrationStatus {
   PENDING_INFO
 }
 enum AuditAction {
+  // Authentication
   LOGIN
   LOGIN_FAILED
+  LOGOUT
+  PASSWORD_RESET
+  IMPERSONATION_START
+  IMPERSONATION_END
+  
+  // Documents
   UPLOAD_DOCUMENT
   VIEW_DOCUMENT
   DELETE_DOCUMENT
+  DOCUMENT_SHARED
+  
+  // User Management
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  USER_SUSPENDED
+  
+  // Tenant Management
+  TENANT_CREATED
+  TENANT_UPDATED
+  TENANT_SUSPENDED
+  
+  // Settings
   UPDATE_SETTINGS
-  EXPORT_DATA
+  PLAN_CHANGED
+  MODULE_ACTIVATED
+  MODULE_DEACTIVATED
+  
+  // Financial
   PAYMENT_RECEIVED
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_CANCELLED
+  
+  // System
+  EXPORT_DATA
+  API_KEY_GENERATED
+  SAMPLE_DATA_GENERATED
 }
 
 enum LicenseStatus {
@@ -333,6 +365,9 @@ model Tenant {
   twilioAccountSid            String? @map("twilio_account_sid")
   twilioAuthToken             String? @map("twilio_auth_token")           // ENCRYPTED
   twilioWhatsappNumber        String? @map("twilio_whatsapp_number")      // Format: whatsapp:+1415...
+
+  // Liste des médecins prescripteurs (pour BI Dashboard)
+  prescribers                 String[] @default([])  // Ex: ["Dr. Dupont", "Dr. Martin"]
 
   // Relations
   users           User[]
@@ -780,3 +815,18 @@ model PricingFeature {
   @@map("pricing_features")
 }
 
+// --------------------------------------
+// OCR CONFIGURATION
+// Configurable exclusion keywords for patient name detection
+// --------------------------------------
+
+model OcrExclusionKeyword {
+  id        String   @id @default(cuid())
+  keyword   String   @unique  // e.g., "biologiste", "major"
+  category  String   @default("role") // "role" | "title" | "context"
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  @@map("ocr_exclusion_keywords")
+}

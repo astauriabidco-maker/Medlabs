@@ -1,9 +1,11 @@
 /**
- * Mini OCR - PDF Text Extractor
+ * Mini OCR - PDF Text Extractor with Tesseract.js Fallback
  * Extracts patient information from PDF files using pdf.js
+ * Falls back to Tesseract.js OCR for scanned PDFs
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
+import Tesseract from 'tesseract.js';
 
 // Configure pdf.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -16,10 +18,84 @@ export interface ExtractedData {
     prescriberName?: string;  // Médecin prescripteur (for BI Dashboard)
     rawText?: string;
     confidence: 'high' | 'medium' | 'low' | 'none';
+    ocrUsed?: boolean;  // Indicates if Tesseract OCR was used
+}
+
+// Progress callback type for UI feedback
+export type OcrProgressCallback = (progress: number, status: string) => void;
+
+// =========================================================================
+// DYNAMIC OCR EXCLUSION KEYWORDS - Loaded from Super Admin configuration
+// =========================================================================
+
+interface OcrKeywordCache {
+    keywords: string[];
+    timestamp: number;
+}
+
+const OCR_CACHE_KEY = 'medlabs_ocr_keywords';
+const OCR_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Default keywords (fallback if API unavailable)
+const DEFAULT_STAFF_KEYWORDS = [
+    'major', 'vice', 'chef', 'biologiste', 'directeur', 'responsable',
+    'pharmacien', 'technicien', 'laborantin', 'secrétaire', 'infirmier',
+    'médecin', 'agrément', 'accréditation', 'dr', 'pr'
+];
+
+/**
+ * Load OCR exclusion keywords from API with localStorage cache
+ * Falls back to defaults if API is unavailable
+ */
+async function loadOcrKeywords(): Promise<string[]> {
+    try {
+        // Check localStorage cache
+        const cached = localStorage.getItem(OCR_CACHE_KEY);
+        if (cached) {
+            const cacheData: OcrKeywordCache = JSON.parse(cached);
+            if (Date.now() - cacheData.timestamp < OCR_CACHE_TTL) {
+                return cacheData.keywords;
+            }
+        }
+
+        // Fetch from API
+        const response = await fetch('/api/ocr-config/keywords');
+        if (!response.ok) {
+            throw new Error('API unavailable');
+        }
+
+        const data = await response.json();
+        const keywords = data.map((k: { keyword: string }) => k.keyword.toLowerCase());
+
+        // Update cache
+        const cacheData: OcrKeywordCache = {
+            keywords,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(OCR_CACHE_KEY, JSON.stringify(cacheData));
+
+        return keywords;
+    } catch (error) {
+        console.warn('[PDF Extractor] Failed to load OCR keywords from API, using defaults');
+        return DEFAULT_STAFF_KEYWORDS;
+    }
+}
+
+// Pre-load keywords on module initialization
+let cachedKeywords: string[] | null = null;
+loadOcrKeywords().then(keywords => {
+    cachedKeywords = keywords;
+});
+
+/**
+ * Get OCR keywords (sync, uses pre-loaded cache)
+ */
+function getOcrKeywords(): string[] {
+    return cachedKeywords || DEFAULT_STAFF_KEYWORDS;
 }
 
 /**
- * Extract text from a PDF file
+ * Extract text from a PDF file using pdf.js
  */
 async function extractTextFromPdf(file: File): Promise<string> {
     const arrayBuffer = await file.arrayBuffer();
@@ -37,6 +113,77 @@ async function extractTextFromPdf(file: File): Promise<string> {
             .map((item: any) => item.str)
             .join(' ');
         fullText += pageText + '\n';
+    }
+
+    return fullText;
+}
+
+/**
+ * Convert PDF page to image for OCR
+ */
+async function pdfPageToImage(file: File, pageNum: number = 1): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(pageNum);
+
+    // Render at 2x scale for better OCR accuracy
+    const scale = 2.0;
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await page.render({
+        canvasContext: context,
+        viewport: viewport,
+        canvas: canvas
+    } as any).promise;
+
+    // Return as base64 data URL
+    return canvas.toDataURL('image/png');
+}
+
+/**
+ * Extract text from scanned PDF using Tesseract.js OCR
+ */
+async function extractTextWithOcr(
+    file: File,
+    onProgress?: OcrProgressCallback
+): Promise<string> {
+    let fullText = '';
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pagesToScan = Math.min(pdf.numPages, 2); // OCR first 2 pages only (slow)
+
+    for (let i = 1; i <= pagesToScan; i++) {
+        if (onProgress) {
+            onProgress((i - 1) / pagesToScan * 100, `OCR page ${i}/${pagesToScan}...`);
+        }
+
+        const imageData = await pdfPageToImage(file, i);
+
+        const result = await Tesseract.recognize(
+            imageData,
+            'fra+eng', // French + English
+            {
+                logger: (m) => {
+                    if (m.status === 'recognizing text' && onProgress) {
+                        const pageProgress = (i - 1) / pagesToScan * 100;
+                        const stepProgress = (m.progress || 0) * 100 / pagesToScan;
+                        onProgress(pageProgress + stepProgress, `Analyse page ${i}...`);
+                    }
+                }
+            }
+        );
+
+        fullText += result.data.text + '\n';
+    }
+
+    if (onProgress) {
+        onProgress(100, 'Terminé');
     }
 
     return fullText;
@@ -78,44 +225,251 @@ function detectPhone(text: string): string | undefined {
 }
 
 /**
- * Detect patient name from text
- * Looks for patterns like "Patient: ...", "Nom: ...", "M./Mme ..."
+ * Extract only the patient section from text, excluding header/laboratory section
+ * The header typically contains: Laboratory name, Biologist names, Address, Accreditation
+ * The patient section typically starts with: "Patient:", "Nom du patient", etc.
+ */
+function extractPatientSection(text: string): string {
+    // Try to find explicit patient section markers
+    const patientSectionMarkers = [
+        /(?:PATIENT|Patient|PATIENTE?)\s*[:\-]/i,
+        /(?:Informations?\s+patient|Renseignements?\s+patient)/i,
+        /(?:Identité\s+du\s+patient)/i,
+        /(?:Nom\s+du\s+patient)/i,
+        /(?:Identification\s+patient)/i,
+    ];
+
+    for (const marker of patientSectionMarkers) {
+        const match = text.match(marker);
+        if (match && match.index !== undefined) {
+            // Return text starting from patient section
+            return text.substring(match.index);
+        }
+    }
+
+    // If no explicit marker, try to find the end of header section
+    // Header typically ends before patient info and contains these keywords
+    const headerEndMarkers = [
+        /(?:Biologiste|Directeur|Responsable|Pharmacien|Docteur)\s*[:\-]?\s*(?:Dr\.?|Pr\.?)?\s*[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+/gi,
+        /(?:Agrément|Accréditation|N°\s*Agrément)/i,
+        /(?:Tél|Tel|Fax)\s*[:\-]?\s*[\d\s\+\-\.]+/gi,
+    ];
+
+    let headerEndIndex = 0;
+    for (const marker of headerEndMarkers) {
+        const matches = [...text.matchAll(marker)];
+        if (matches.length > 0) {
+            const lastMatch = matches[matches.length - 1];
+            if (lastMatch.index !== undefined) {
+                const potentialEnd = lastMatch.index + lastMatch[0].length;
+                if (potentialEnd > headerEndIndex && potentialEnd < text.length / 2) {
+                    headerEndIndex = potentialEnd;
+                }
+            }
+        }
+    }
+
+    // Return text after header section
+    if (headerEndIndex > 0) {
+        return text.substring(headerEndIndex);
+    }
+
+    return text;
+}
+
+/**
+ * Check if a name appears in a laboratory/professional context
+ */
+function isLaboratoryContext(text: string, name: string): boolean {
+    // Check if the name appears near laboratory-related keywords
+    const labKeywords = [
+        'Biologiste',
+        'Directeur',
+        'Responsable',
+        'Pharmacien',
+        'Laboratoire',
+        'Laboratory',
+        'Agrément',
+        'Accréditation',
+        'Médecin biologiste',
+        'Chef de service',
+        'Technicien',
+        'signé par',
+        'validé par',
+    ];
+
+    const nameIndex = text.toLowerCase().indexOf(name.toLowerCase());
+    if (nameIndex === -1) return false;
+
+    // Check 200 characters before the name for lab context
+    const contextBefore = text.substring(Math.max(0, nameIndex - 200), nameIndex).toLowerCase();
+
+    for (const keyword of labKeywords) {
+        if (contextBefore.includes(keyword.toLowerCase())) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * =============================================================================
+ * PATIENT NAME DETECTION
+ * =============================================================================
+ * 
+ * This function extracts the patient name from medical laboratory PDF text.
+ * 
+ * CHALLENGE:
+ * Laboratory PDFs often contain multiple names in the header (biologists, 
+ * directors, technicians) which can be confused with the patient name.
+ * 
+ * SOLUTION - Priority-based detection:
+ * 
+ *   PRIORITY 1: "Mlle" (Mademoiselle) pattern
+ *   - Very specific to patients, almost never used for laboratory staff
+ *   - Staff typically use "Mme", "M.", "Dr.", "Pr."
+ * 
+ *   PRIORITY 2: Name near "Code Patient" marker
+ *   - If found, look backwards and filter out staff role keywords
+ * 
+ *   PRIORITY 3: Title + Name NOT preceded by staff role keywords
+ *   - Scans all "Mlle/Mme/M." patterns and excludes those near staff keywords
+ * 
+ *   PRIORITY 4: Explicit "Patient:" label
+ * 
+ *   PRIORITY 5: Separate "Nom:" and "Prénom:" fields
+ * 
+ * STAFF KEYWORDS TO EXCLUDE:
+ * These keywords in the 80 characters before a name indicate it's staff, not patient:
+ *   - Roles: major, vice major, chef de service, biologiste, directeur, responsable
+ *   - Medical: pharmacien, technicien, laborantin, secrétaire, infirmier
+ *   - Titles: Dr., Pr.
+ *   - Context: list separators (dash before name)
+ * 
+ * TO EXTEND:
+ * Add new staff keywords to the STAFF_ROLE_PATTERNS array below.
+ * =============================================================================
  */
 function detectPatientName(text: string): { firstName?: string; lastName?: string } {
     const result: { firstName?: string; lastName?: string } = {};
 
-    // Common patterns in medical documents
-    const patterns = [
-        // "Patient: Prénom Nom" or "Patient: Nom Prénom"
-        /(?:Patient|Patiente?)\s*[:\-]\s*([A-ZÀ-Ÿ][a-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/i,
-        // "Nom: XXX" followed by "Prénom: XXX"
-        /Nom\s*[:\-]\s*([A-ZÀ-Ÿ]{2,})/i,
-        // "M./Mme LASTNAME Firstname"
-        /(?:M\.|Mme|Mr|Mrs)\s+([A-ZÀ-Ÿ]{2,})\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/i,
-        // "NOM Prénom" (all caps last name)
-        /\b([A-ZÀ-Ÿ]{3,})\s+([A-ZÀ-Ÿ][a-zà-ÿ]{2,})\b/,
-    ];
+    // =========================================================================
+    // STAFF ROLE PATTERNS - Generated from dynamic keywords
+    // Keywords are loaded from Super Admin configuration with localStorage cache
+    // =========================================================================
+    const dynamicKeywords = getOcrKeywords();
 
-    for (const pattern of patterns) {
-        const match = text.match(pattern);
-        if (match) {
-            if (match[2]) {
-                // Pattern with both first and last name
-                result.lastName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-                result.firstName = match[2].charAt(0).toUpperCase() + match[2].slice(1).toLowerCase();
-            } else if (match[1]) {
-                // Only last name found
-                result.lastName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
-            }
-            if (result.lastName) break;
+    // Generate regex patterns from dynamic keywords
+    const STAFF_ROLE_PATTERNS = dynamicKeywords.map(keyword => {
+        // Escape special regex characters
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`${escaped}[s]?\\s*[:.\\-]?\\s*$`, 'i');
+    });
+
+    // Add list context pattern (names after dash in staff lists)
+    STAFF_ROLE_PATTERNS.push(/\-\s*$/);
+
+    // Staff keywords for simple string matching (used in Code Patient filtering)
+    const STAFF_KEYWORDS = dynamicKeywords;
+
+    // =========================================================================
+    // PRIORITY 1: "Mlle" (Mademoiselle) - Very specific, almost always patient
+    // =========================================================================
+    const mllePattern = /Mlle\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/i;
+    const mlleMatch = text.match(mllePattern);
+
+    if (mlleMatch) {
+        result.lastName = mlleMatch[1].charAt(0).toUpperCase() + mlleMatch[1].slice(1).toLowerCase();
+        result.firstName = mlleMatch[2].charAt(0).toUpperCase() + mlleMatch[2].slice(1).toLowerCase();
+        return result;
+    }
+
+    // =========================================================================
+    // PRIORITY 2: "Code Patient" marker - Look backwards for patient name
+    // =========================================================================
+    const codePatientIndex = text.search(/Code\s*Patient/i);
+
+    if (codePatientIndex > 0) {
+        const textBeforeCodePatient = text.substring(Math.max(0, codePatientIndex - 100), codePatientIndex);
+        const namePattern = /(?:Mlle|Mme|M\.?|Mr|Mrs)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/gi;
+        const matches = [...textBeforeCodePatient.matchAll(namePattern)];
+
+        // Filter out staff names
+        const filteredMatches = matches.filter(m => {
+            const matchIndex = m.index || 0;
+            const contextBefore = textBeforeCodePatient.substring(Math.max(0, matchIndex - 40), matchIndex).toLowerCase();
+            return !STAFF_KEYWORDS.some(kw => contextBefore.includes(kw));
+        });
+
+        if (filteredMatches.length > 0) {
+            const lastMatch = filteredMatches[filteredMatches.length - 1];
+            result.lastName = lastMatch[1].charAt(0).toUpperCase() + lastMatch[1].slice(1).toLowerCase();
+            result.firstName = lastMatch[2].charAt(0).toUpperCase() + lastMatch[2].slice(1).toLowerCase();
+            return result;
         }
     }
 
-    // Try to find first name separately if not found
-    if (result.lastName && !result.firstName) {
-        const firstNameMatch = text.match(/Pr[ée]nom\s*[:\-]\s*([A-ZÀ-Ÿ][a-zà-ÿ]+)/i);
-        if (firstNameMatch) {
-            result.firstName = firstNameMatch[1];
+    // =========================================================================
+    // PRIORITY 3: Title + Name NOT preceded by staff role
+    // =========================================================================
+    const titleNamePattern = /(?:Mlle|Mme|M\.?|Mr|Mrs)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/gi;
+    const allMatches = [...text.matchAll(titleNamePattern)];
+
+    for (const match of allMatches) {
+        if (match.index === undefined) continue;
+
+        const contextBefore = text.substring(Math.max(0, match.index - 80), match.index);
+        const isStaffRole = STAFF_ROLE_PATTERNS.some(pattern => pattern.test(contextBefore));
+
+        if (!isStaffRole) {
+            result.lastName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
+            result.firstName = match[2].charAt(0).toUpperCase() + match[2].slice(1).toLowerCase();
+            return result;
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 4: Explicit "Patient:" label
+    // =========================================================================
+    const explicitPatientPattern = /(?:Patient|Patiente?)\s*[:\-]\s*(?:Mlle|Mme|M\.?|Mr|Mrs)?\s*([A-ZÀ-Ÿ][a-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/i;
+    const explicitMatch = text.match(explicitPatientPattern);
+
+    if (explicitMatch) {
+        result.lastName = explicitMatch[1].charAt(0).toUpperCase() + explicitMatch[1].slice(1).toLowerCase();
+        result.firstName = explicitMatch[2].charAt(0).toUpperCase() + explicitMatch[2].slice(1).toLowerCase();
+        return result;
+    }
+
+    // =========================================================================
+    // PRIORITY 5: Separate "Nom:" and "Prénom:" fields
+    // =========================================================================
+    const patientSection = extractPatientSection(text);
+
+    const nomMatch = patientSection.match(/Nom\s*[:\-]\s*([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)/i);
+    const prenomMatch = patientSection.match(/Pr[ée]nom\s*[:\-]\s*([A-ZÀ-Ÿ][a-zà-ÿ]+)/i);
+
+    if (nomMatch) {
+        result.lastName = nomMatch[1].charAt(0).toUpperCase() + nomMatch[1].slice(1).toLowerCase();
+    }
+    if (prenomMatch) {
+        result.firstName = prenomMatch[1].charAt(0).toUpperCase() + prenomMatch[1].slice(1).toLowerCase();
+    }
+
+    // =========================================================================
+    // PRIORITY 6: Name before "Né(e) le" birth date
+    // =========================================================================
+    if (!result.lastName) {
+        const birthPattern = /([A-ZÀ-Ÿ][a-zà-ÿ]+(?:\s+[A-ZÀ-Ÿ][a-zà-ÿ]+)?)\s*,?\s*[Nn][ée]e?\s+le/i;
+        const birthMatch = patientSection.match(birthPattern);
+        if (birthMatch) {
+            const parts = birthMatch[1].trim().split(/\s+/);
+            if (parts.length >= 2) {
+                result.firstName = parts[0];
+                result.lastName = parts.slice(1).join(' ');
+            } else {
+                result.lastName = birthMatch[1];
+            }
         }
     }
 
@@ -204,16 +558,46 @@ function calculateConfidence(data: Partial<ExtractedData>): 'high' | 'medium' | 
 }
 
 /**
- * Main function: Extract patient data from PDF file
+ * Check if text is meaningful (not just whitespace/garbage)
  */
-export async function extractPdfData(file: File): Promise<ExtractedData> {
+function isTextMeaningful(text: string): boolean {
+    // Remove whitespace and check if we have at least 50 chars of content
+    const cleaned = text.replace(/\s+/g, '').trim();
+    if (cleaned.length < 50) return false;
+
+    // Check for common French/English words to ensure it's real text
+    const hasCommonWords = /\b(patient|nom|prénom|date|résultat|analyse|laboratoire|the|and|or)\b/i.test(text);
+    return hasCommonWords || cleaned.length > 200;
+}
+
+/**
+ * Main function: Extract patient data from PDF file
+ * Uses pdf.js first, falls back to Tesseract.js OCR for scanned PDFs
+ */
+export async function extractPdfData(
+    file: File,
+    onProgress?: OcrProgressCallback
+): Promise<ExtractedData> {
     try {
         // Only process PDF files
         if (!file.type.includes('pdf')) {
             return { confidence: 'none' };
         }
 
-        const rawText = await extractTextFromPdf(file);
+        let rawText = '';
+        let ocrUsed = false;
+
+        // Step 1: Try pdf.js text extraction first (fast)
+        if (onProgress) onProgress(10, 'Extraction du texte...');
+        rawText = await extractTextFromPdf(file);
+
+        // Step 2: If no meaningful text found, use Tesseract OCR (slow)
+        if (!isTextMeaningful(rawText)) {
+            console.log('[PDF Extractor] No text found, switching to OCR...');
+            ocrUsed = true;
+            if (onProgress) onProgress(20, 'PDF scanné détecté, démarrage OCR...');
+            rawText = await extractTextWithOcr(file, onProgress);
+        }
 
         // Extract individual fields
         const phone = detectPhone(rawText);
@@ -229,6 +613,7 @@ export async function extractPdfData(file: File): Promise<ExtractedData> {
             prescriberName: prescriberName,
             rawText: rawText.substring(0, 500), // Keep first 500 chars for debugging
             confidence: 'none',
+            ocrUsed: ocrUsed,
         };
 
         extracted.confidence = calculateConfidence(extracted);
@@ -240,6 +625,7 @@ export async function extractPdfData(file: File): Promise<ExtractedData> {
             folderRef: extracted.folderRef,
             prescriberName: extracted.prescriberName,
             confidence: extracted.confidence,
+            ocrUsed: extracted.ocrUsed,
         });
 
         return extracted;

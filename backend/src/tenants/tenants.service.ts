@@ -6,6 +6,8 @@ import { CreateTenantDto } from './dto/create-tenant.dto';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UserRole, UserStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { AlertsService } from '../alerts/alerts.service';
 
 @Injectable()
 export class TenantsService {
@@ -13,10 +15,12 @@ export class TenantsService {
 
     constructor(
         private prisma: PrismaService,
-        private config: DynamicConfigService
+        private config: DynamicConfigService,
+        private auditService: AuditService,
+        private alertsService: AlertsService,
     ) { }
 
-    async createTenantWithAdmin(dto: CreateTenantDto) {
+    async createTenantWithAdmin(dto: CreateTenantDto, actorId?: string) {
         // 1. Check if slug exists
         const existingSlug = await this.prisma.tenant.findUnique({ where: { slug: dto.slug } });
         if (existingSlug) {
@@ -32,17 +36,11 @@ export class TenantsService {
         const hashedPassword = await bcrypt.hash(dto.adminPassword, 10);
 
         // 3. Transaction
-        return this.prisma.$transaction(async (tx) => {
+        const result = await this.prisma.$transaction(async (tx) => {
             const tenant = await tx.tenant.create({
                 data: {
                     name: dto.name,
                     slug: dto.slug,
-                    // We might need to add these fields to schema if not present, but based on mock valid fields:
-                    // For now, assume schema has basic fields or we map them. 
-                    // Wait, schema was viewed earlier. Let's stick to known schema fields or defaults.
-                    // Schema checks: name, slug, (others?)
-                    // If schema lacks niu/rccm, we skip or store in JSON/settings.
-                    // Assuming basic fields for now. 
                     smsBalance: dto.initialSmsQuota || 0,
                 }
             });
@@ -61,6 +59,20 @@ export class TenantsService {
 
             return { tenant, admin: user };
         });
+
+        // Audit log tenant creation
+        await this.auditService.logTenantAction('TENANT_CREATED', dto.name, actorId || 'SYSTEM', result.tenant.id);
+
+        // Create system alert for new tenant
+        await this.alertsService.createAlert({
+            type: 'NEW_TENANT',
+            severity: 'INFO',
+            title: `Nouveau laboratoire: ${dto.name}`,
+            message: `Le laboratoire ${dto.name} vient d'être créé avec l'administrateur ${dto.adminEmail}.`,
+            tenantId: result.tenant.id,
+        });
+
+        return result;
     }
 
     async findAll() {

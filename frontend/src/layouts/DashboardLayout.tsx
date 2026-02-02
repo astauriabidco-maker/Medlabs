@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useLocation, Navigate } from 'react-router-dom';
-import { useAuth, UserRole } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import {
     Building2,
@@ -32,7 +32,10 @@ interface NavItem {
     translationKey: string;
     path: string;
     icon: React.ReactNode;
+    requiredFeature?: string; // Feature required to access this menu
 }
+
+type UserRole = 'SUPER_ADMIN' | 'LAB_ADMIN' | 'TECHNICIAN';
 
 const NAV_CONFIG: Record<UserRole, NavItem[]> = {
     SUPER_ADMIN: [
@@ -50,19 +53,24 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
         { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
         { label: 'Financial', translationKey: 'nav.financial', path: '/dashboard/financial', icon: <CreditCard className="w-5 h-5" /> },
+        { label: 'OCR Config', translationKey: 'nav.ocrConfig', path: '/dashboard/ocr-config', icon: <FileText className="w-5 h-5" /> },
     ],
     LAB_ADMIN: [
+        // Base features (always available)
         { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
         { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
         { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
         { label: 'My Team', translationKey: 'nav.team', path: '/dashboard/team', icon: <Users className="w-5 h-5" /> },
-        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" /> },
-        { label: 'Patient Portal', translationKey: 'nav.patientPortal', path: '/dashboard/patient-portal', icon: <Heart className="w-5 h-5" /> },
-        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" /> },
+
+        // Premium features - require specific features
+        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
+        { label: 'Patient Portal', translationKey: 'nav.patientPortal', path: '/dashboard/patient-portal', icon: <Heart className="w-5 h-5" />, requiredFeature: 'PATIENT_PORTAL' },
+        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
+        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" />, requiredFeature: 'ANALYTICS_BI' },
+
+        // Always available
         { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
         { label: 'Lab Settings', translationKey: 'nav.labSettings', path: '/dashboard/settings', icon: <Settings className="w-5 h-5" /> },
-        { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
-        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     ],
     TECHNICIAN: [
         { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
@@ -76,6 +84,30 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
     const [roleMenuOpen, setRoleMenuOpen] = React.useState(false);
+    const [accessibleFeatures, setAccessibleFeatures] = React.useState<string[]>([]);
+    const [featuresLoaded, setFeaturesLoaded] = React.useState(false);
+
+    // Load accessible features for LAB_ADMIN and TECHNICIAN users
+    React.useEffect(() => {
+        const loadAccessibleFeatures = async () => {
+            if (user && (user.role === 'LAB_ADMIN' || user.role === 'TECHNICIAN')) {
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/tenants/me/access', {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setAccessibleFeatures(data.allFeatures || []);
+                    }
+                } catch (error) {
+                    console.error('Failed to load accessible features:', error);
+                }
+            }
+            setFeaturesLoaded(true);
+        };
+        loadAccessibleFeatures();
+    }, [user]);
 
     // Redirect logic handled by router now or within specific pages if needed
     // Removed specific technician redirect to allow access to dashboard layout
@@ -84,7 +116,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         return <Navigate to="/login" replace />;
     }
 
-    const navItems = NAV_CONFIG[user.role] || [];
+    // Filter nav items based on accessible features
+    const allNavItems = NAV_CONFIG[user.role] || [];
+    const navItems = allNavItems.filter(item => {
+        // If no feature required, always show
+        if (!item.requiredFeature) return true;
+        // If features not loaded yet for LAB roles, hide premium items
+        if (!featuresLoaded && (user.role === 'LAB_ADMIN' || user.role === 'TECHNICIAN')) return false;
+        // Check if user has the required feature
+        return accessibleFeatures.includes(item.requiredFeature);
+    });
 
     return (
         <div className="min-h-screen bg-gray-50">

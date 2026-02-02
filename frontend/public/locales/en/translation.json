@@ -7,7 +7,7 @@
     "nav": {
         "tenants": "Partner Labs",
         "users": "Users & Staff",
-        "directory": "Directory",
+        "directory": "Team",
         "platform": "Platform Settings",
         "audit": "Audit Logs",
         "team": "My Team",
@@ -26,7 +26,11 @@
         "tenant": "Laboratory",
         "marketplace": "Marketplace",
         "integration": "API Integration",
-        "analytics": "BI Analytics"
+        "analytics": "BI Analytics",
+        "systemAlerts": "System Alerts",
+        "financial": "Financial Management",
+        "pricing": "Pricing",
+        "ocrConfig": "OCR Configuration"
     },
     "auth": {
         "signInTitle": "Partner Login",

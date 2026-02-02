@@ -48,6 +48,51 @@ const ARCHIVE_RETENTION_DAYS: Record<string, number> = {
 };
 
 /**
+ * Features included in each subscription plan
+ * STARTER: Basic features only (sending results, team management)
+ * PREMIUM: + Analytics, Long-term archive, API Integration
+ * ENTERPRISE: All features
+ */
+export const PLAN_FEATURES: Record<string, Feature[]> = {
+    STARTER: [
+        // No premium features - only basic functionality
+    ],
+    PREMIUM: [
+        Feature.AUTO_SYNC,
+        Feature.LONG_TERM_ARCHIVE,
+        Feature.ANALYTICS_BI,
+        Feature.API_ADVANCED,
+        Feature.PRIORITY_SUPPORT,
+    ],
+    ENTERPRISE: [
+        Feature.AUTO_SYNC,
+        Feature.ARCHIVE_5Y,
+        Feature.ARCHIVE_10Y,
+        Feature.ANALYTICS_BI,
+        Feature.PATIENT_PORTAL,
+        Feature.APPOINTMENTS,
+        Feature.CRITICAL_ALERTS,
+        Feature.WHATSAPP_BUSINESS,
+        Feature.MOBILE_MONEY,
+        Feature.API_ADVANCED,
+        Feature.UNLIMITED_TEAM,
+        Feature.PRIORITY_SUPPORT,
+    ],
+};
+
+/**
+ * Navigation items that require specific features
+ * Maps frontend routes to required features
+ */
+export const ROUTE_FEATURES: Record<string, Feature> = {
+    '/dashboard/analytics': Feature.ANALYTICS_BI,
+    '/dashboard/patient-portal': Feature.PATIENT_PORTAL,
+    '/dashboard/appointments': Feature.APPOINTMENTS,
+    '/dashboard/alerts': Feature.CRITICAL_ALERTS,
+    '/dashboard/integration': Feature.API_ADVANCED,
+};
+
+/**
  * Hardcoded License Codes (MVP)
  * In production, this would be a database table or external licensing API
  */
@@ -322,5 +367,69 @@ export class LicensingService {
             syncApiKey: tenant?.syncApiKey || null,
             availableModules,
         };
+    }
+
+    /**
+     * Get all accessible features for a tenant based on:
+     * 1. Subscription plan (STARTER/PREMIUM/ENTERPRISE)
+     * 2. Additional features unlocked via license codes
+     */
+    async getAccessibleFeatures(tenantId: string): Promise<{
+        plan: string;
+        planFeatures: string[];
+        additionalFeatures: string[];
+        allFeatures: string[];
+        accessibleRoutes: string[];
+    }> {
+        // Get tenant with subscription
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: {
+                features: true,
+                subscription: { select: { plan: true, status: true } }
+            },
+        });
+
+        if (!tenant) {
+            throw new NotFoundException('Tenant not found');
+        }
+
+        // Get plan (default to STARTER if no subscription)
+        const plan = tenant.subscription?.plan || 'STARTER';
+        const planFeatures = PLAN_FEATURES[plan] || [];
+
+        // Additional features from license codes
+        const additionalFeatures = tenant.features || [];
+
+        // Merge all features (no duplicates)
+        const allFeatures = [...new Set([...planFeatures, ...additionalFeatures])];
+
+        // Calculate accessible routes
+        const accessibleRoutes = Object.entries(ROUTE_FEATURES)
+            .filter(([_, feature]) => allFeatures.includes(feature))
+            .map(([route]) => route);
+
+        return {
+            plan,
+            planFeatures: planFeatures.map(f => f.toString()),
+            additionalFeatures,
+            allFeatures: allFeatures.map(f => f.toString()),
+            accessibleRoutes,
+        };
+    }
+
+    /**
+     * Check if a tenant can access a specific route based on their plan and features
+     */
+    async canAccessRoute(tenantId: string, route: string): Promise<boolean> {
+        const requiredFeature = ROUTE_FEATURES[route];
+
+        // If route doesn't require a feature, allow access
+        if (!requiredFeature) {
+            return true;
+        }
+
+        const { allFeatures } = await this.getAccessibleFeatures(tenantId);
+        return allFeatures.includes(requiredFeature);
     }
 }

@@ -1,23 +1,25 @@
 
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import * as bcrypt from 'bcrypt';
 import { EmailService } from '../notifications/email.service';
-import { v4 as uuidv4 } from 'uuid';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger(AuthService.name);
+
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
         private emailService: EmailService,
+        private auditService: AuditService,
     ) { }
 
     async validateUser(email: string, pass: string): Promise<any> {
-        console.log('Login Attempt:', email);
+        this.logger.log(`Login Attempt: ${email}`);
         const user = await this.prisma.user.findUnique({ where: { email } });
-        console.log('User Found:', user ? 'Yes' : 'No');
 
         if (user) {
             const isMatch = await bcrypt.compare(pass, user.passwordHash);
@@ -29,7 +31,7 @@ export class AuthService {
         return null;
     }
 
-    async login(user: any) {
+    async login(user: any, ipAddress?: string) {
         const payload = {
             sub: user.id,
             email: user.email,
@@ -37,6 +39,16 @@ export class AuthService {
             tenantId: user.tenantId,
             customRoleId: user.customRoleId || null
         };
+
+        // Log successful login
+        await this.auditService.logLogin(user.email, user.id, true, ipAddress);
+
+        // Update last login timestamp
+        await this.prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() }
+        });
+
         return {
             access_token: this.jwtService.sign(payload, {
                 secret: process.env.JWT_SECRET || 'dev_secret_key_123',
@@ -51,6 +63,18 @@ export class AuthService {
         };
     }
 
+    async logFailedLogin(email: string, ipAddress?: string) {
+        // Log failed login attempt
+        await this.auditService.log(
+            'LOGIN_FAILED',
+            `Échec de connexion pour ${email}`,
+            undefined,
+            undefined,
+            undefined,
+            ipAddress
+        );
+    }
+
     async requestPasswordReset(email: string) {
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -58,10 +82,6 @@ export class AuthService {
             return { message: 'If an account exists, a reset link has been sent.' };
         }
 
-        // In a real app, store this token in DB with expiry. 
-        // For now, we'll verify the email matches the token subject if we use JWT, 
-        // or store a random token.
-        // Let's use a short lived JWT as the reset token.
         const resetToken = this.jwtService.sign(
             { sub: user.id, email: user.email, type: 'RESET_PASSWORD' },
             {
@@ -96,6 +116,14 @@ export class AuthService {
                 data: { passwordHash: hash }
             });
 
+            // Log password reset
+            await this.auditService.log(
+                'PASSWORD_RESET',
+                `Mot de passe réinitialisé pour ${user.email}`,
+                user.id,
+                user.tenantId || undefined
+            );
+
             return { message: 'Password updated successfully' };
 
         } catch (e) {
@@ -108,6 +136,9 @@ export class AuthService {
         const user = await this.prisma.user.findUnique({ where: { id: targetUserId } });
         if (!user) throw new NotFoundException('User not found');
 
+        // Log impersonation start
+        await this.auditService.logImpersonation(originalAdminId, user.email, user.id, true);
+
         // Generate Token for this user with impersonation flag
         const payload = {
             sub: user.id,
@@ -116,13 +147,13 @@ export class AuthService {
             tenantId: user.tenantId,
             customRoleId: user.customRoleId || null,
             isImpersonated: true,
-            originalAdminId: originalAdminId, // Store for return functionality
+            originalAdminId: originalAdminId,
         };
 
         return {
             access_token: this.jwtService.sign(payload, {
                 secret: process.env.JWT_SECRET || 'dev_secret_key_123',
-                expiresIn: '1h' // Short lived for security
+                expiresIn: '1h'
             }),
             user: {
                 id: user.id,
@@ -140,6 +171,9 @@ export class AuthService {
         if (!admin || admin.role !== 'SUPER_ADMIN') {
             throw new UnauthorizedException('Invalid admin');
         }
+
+        // Log impersonation end
+        await this.auditService.logImpersonation(originalAdminId, admin.email, originalAdminId, false);
 
         // Generate fresh token for the Super Admin
         return this.login(admin);

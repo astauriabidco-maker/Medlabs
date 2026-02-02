@@ -44,6 +44,7 @@ export default function SuperAdminDashboard() {
     const [stats, setStats] = useState<PlatformStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [generating, setGenerating] = useState(false);
 
     const fetchStats = async () => {
         setLoading(true);
@@ -61,6 +62,27 @@ export default function SuperAdminDashboard() {
             console.error(err);
         }
         setLoading(false);
+    };
+
+    const generateDemoData = async () => {
+        if (!confirm('Générer des données de démonstration (audit logs, alertes, abonnements)?')) return;
+
+        setGenerating(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/admin/demo-data/generate-all', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error('Failed to generate demo data');
+            const data = await res.json();
+            alert(`✅ Données générées:\n- ${data.results.auditLogs.created} logs d'audit\n- ${data.results.systemAlerts.created} alertes système\n- ${data.results.subscriptions.created} abonnements`);
+            fetchStats(); // Refresh stats
+        } catch (err) {
+            console.error(err);
+            alert('❌ Erreur lors de la génération des données');
+        }
+        setGenerating(false);
     };
 
     useEffect(() => {
@@ -94,10 +116,16 @@ export default function SuperAdminDashboard() {
                     <h1 className="text-2xl font-bold text-gray-900">Dashboard Plateforme</h1>
                     <p className="text-gray-500">Vue globale de MedLabs</p>
                 </div>
-                <Button onClick={fetchStats} variant="outline">
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Actualiser
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button onClick={generateDemoData} variant="outline" disabled={generating}>
+                        {generating ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Activity className="w-4 h-4 mr-2" />}
+                        Générer Démo
+                    </Button>
+                    <Button onClick={fetchStats} variant="outline">
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Actualiser
+                    </Button>
+                </div>
             </div>
 
             {/* KPI Cards */}
@@ -243,9 +271,9 @@ export default function SuperAdminDashboard() {
                                 <div key={tenant.slug} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
                                     <div className="flex items-center gap-3">
                                         <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                                idx === 1 ? 'bg-gray-100 text-gray-700' :
-                                                    idx === 2 ? 'bg-orange-100 text-orange-700' :
-                                                        'bg-blue-50 text-blue-600'
+                                            idx === 1 ? 'bg-gray-100 text-gray-700' :
+                                                idx === 2 ? 'bg-orange-100 text-orange-700' :
+                                                    'bg-blue-50 text-blue-600'
                                             }`}>
                                             {idx + 1}
                                         </span>
@@ -277,8 +305,8 @@ export default function SuperAdminDashboard() {
                                 recentActivity.map((activity, idx) => (
                                     <div key={idx} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activity.type === 'tenant' ? 'bg-blue-100 text-blue-600' :
-                                                activity.type === 'user' ? 'bg-green-100 text-green-600' :
-                                                    'bg-gray-100 text-gray-600'
+                                            activity.type === 'user' ? 'bg-green-100 text-green-600' :
+                                                'bg-gray-100 text-gray-600'
                                             }`}>
                                             {activity.type === 'tenant' ? <Building2 className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                                         </div>

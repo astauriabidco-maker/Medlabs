@@ -50,6 +50,18 @@ export class TenantsController {
         return this.licensingService.getLicenseInfo(tenantId);
     }
 
+    /**
+     * Get accessible features based on subscription plan and license codes
+     * Used by frontend to filter navigation menus
+     */
+    @Get('me/access')
+    @Roles('LAB_ADMIN', 'TECHNICIAN')
+    async getAccessInfo(@Request() req: any) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
+        return this.licensingService.getAccessibleFeatures(tenantId);
+    }
+
     @Post('me/license')
     @Roles('LAB_ADMIN')
     async activateLicense(@Request() req: any, @Body() body: { code: string }) {
