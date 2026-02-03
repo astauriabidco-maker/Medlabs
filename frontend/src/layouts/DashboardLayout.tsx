@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 interface NavItem {
     label: string; // Now this will be a translation key actually, but handled in render
@@ -129,6 +130,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            {/* PWA Offline Indicator */}
+            <OfflineIndicator />
+
             {/* Mobile Header */}
             <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b px-4 py-3 flex items-center justify-between">
                 <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">

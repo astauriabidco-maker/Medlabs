@@ -11,6 +11,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles, User } from '../auth/guards';
 import { FeatureGuard, RequireFeature } from '../auth/feature.guard';
 import { ApiKeyAuthGuard } from '../auth/api-key.guard';
@@ -38,6 +39,7 @@ interface SyncUploadResponse {
  * 1. /upload - JWT authenticated (for web users)
  * 2. /bot - API Key authenticated (for Windows automation)
  */
+@ApiTags('Sync')
 @Controller('sync')
 export class SyncController {
     private readonly logger = new Logger(SyncController.name);

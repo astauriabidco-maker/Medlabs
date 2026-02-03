@@ -1,9 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { PrismaService } from '../prisma.service';
+
+const OCR_KEYWORDS_CACHE_KEY = 'ocr:keywords:active';
+const OCR_KEYWORDS_CACHE_TTL = 60 * 60 * 1000; // 1 hour in ms
 
 @Injectable()
 export class OcrConfigService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        @Inject(CACHE_MANAGER) private cacheManager: Cache
+    ) { }
+
+    /**
+     * Invalidate the OCR keywords cache
+     */
+    private async invalidateCache() {
+        try {
+            await this.cacheManager.del(OCR_KEYWORDS_CACHE_KEY);
+            console.log('[OcrConfig] Cache invalidated');
+        } catch (error) {
+            console.warn('[OcrConfig] Cache invalidation failed:', error.message);
+        }
+    }
 
     /**
      * Get all keywords (for admin panel)
@@ -19,31 +39,57 @@ export class OcrConfigService {
 
     /**
      * Get only active keywords (for PDF extractor)
+     * CACHED: Results are cached in Redis for 1 hour
      */
     async findActive() {
-        return this.prisma.ocrExclusionKeyword.findMany({
+        // Try cache first
+        try {
+            const cached = await this.cacheManager.get(OCR_KEYWORDS_CACHE_KEY);
+            if (cached) {
+                console.log('[OcrConfig] Cache HIT for keywords');
+                return cached;
+            }
+        } catch (error) {
+            console.warn('[OcrConfig] Cache read failed:', error.message);
+        }
+
+        // Fetch from database
+        console.log('[OcrConfig] Cache MISS - fetching from database');
+        const keywords = await this.prisma.ocrExclusionKeyword.findMany({
             where: { isActive: true },
             select: { keyword: true, category: true }
         });
+
+        // Store in cache
+        try {
+            await this.cacheManager.set(OCR_KEYWORDS_CACHE_KEY, keywords, OCR_KEYWORDS_CACHE_TTL);
+            console.log('[OcrConfig] Cached', keywords.length, 'keywords');
+        } catch (error) {
+            console.warn('[OcrConfig] Cache write failed:', error.message);
+        }
+
+        return keywords;
     }
 
     /**
      * Create a new exclusion keyword
      */
     async create(keyword: string, category: string = 'role') {
-        return this.prisma.ocrExclusionKeyword.create({
+        const result = await this.prisma.ocrExclusionKeyword.create({
             data: {
                 keyword: keyword.toLowerCase().trim(),
                 category
             }
         });
+        await this.invalidateCache();
+        return result;
     }
 
     /**
      * Update a keyword (toggle active, change category)
      */
     async update(id: string, data: { keyword?: string; category?: string; isActive?: boolean }) {
-        return this.prisma.ocrExclusionKeyword.update({
+        const result = await this.prisma.ocrExclusionKeyword.update({
             where: { id },
             data: {
                 ...(data.keyword && { keyword: data.keyword.toLowerCase().trim() }),
@@ -51,15 +97,19 @@ export class OcrConfigService {
                 ...(data.isActive !== undefined && { isActive: data.isActive })
             }
         });
+        await this.invalidateCache();
+        return result;
     }
 
     /**
      * Delete a keyword
      */
     async delete(id: string) {
-        return this.prisma.ocrExclusionKeyword.delete({
+        const result = await this.prisma.ocrExclusionKeyword.delete({
             where: { id }
         });
+        await this.invalidateCache();
+        return result;
     }
 
     /**
@@ -101,6 +151,7 @@ export class OcrConfigService {
             }
         }
 
+        await this.invalidateCache();
         return { seeded: defaults.length };
     }
 }

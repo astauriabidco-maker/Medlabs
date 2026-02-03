@@ -37,11 +37,13 @@ import { AlertsModule } from './alerts/alerts.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { DemoDataModule } from './admin/demo-data.module';
 import { OcrConfigModule } from './ocr-config/ocr-config.module';
+import { RedisCacheModule } from './cache/redis-cache.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    RedisCacheModule, // Global Redis cache
 
     // ============================================
     // SECURITY: Rate Limiting (Brute Force Protection)

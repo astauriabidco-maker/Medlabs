@@ -497,6 +497,8 @@ model Document {
   patientEmail     String    @map("patient_email")
   patientPhone     String    @map("patient_phone") // E.164 Format strictly enforced in code
   patientDob       DateTime? @map("patient_dob") // Optional, for security challenge
+  civility         String?   @map("civility")      // 'M' | 'Mme' | 'Mlle'
+  sampleDate       DateTime? @map("sample_date")   // Date de prélèvement
 
   // Security & Lifecycle
   accessKey  String         @unique @default(uuid()) @map("access_key") // The "Magic Link" token

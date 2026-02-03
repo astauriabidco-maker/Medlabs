@@ -109,6 +109,8 @@ export class ResultsService {
                 accessCode: accessCode,
                 status: 'UPLOADED',
                 prescriberName: createResultDto.prescriberName || null,  // BI Dashboard tracking
+                civility: createResultDto.civility || null,  // Civilité patient
+                sampleDate: createResultDto.sampleDate ? new Date(createResultDto.sampleDate) : null,  // Date de prélèvement
             },
         });
 

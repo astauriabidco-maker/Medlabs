@@ -10,9 +10,11 @@ import {
     HttpCode,
     HttpStatus
 } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { OcrConfigService } from './ocr-config.service';
 import { JwtAuthGuard, RolesGuard, Roles } from '../auth/guards';
 
+@ApiTags('OCR')
 @Controller('ocr-config')
 export class OcrConfigController {
     constructor(private readonly ocrConfigService: OcrConfigService) { }

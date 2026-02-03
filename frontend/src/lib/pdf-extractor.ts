@@ -16,6 +16,8 @@ export interface ExtractedData {
     patientPhone?: string;
     folderRef?: string;
     prescriberName?: string;  // Médecin prescripteur (for BI Dashboard)
+    civility?: 'M' | 'Mme' | 'Mlle';  // Civilité patient
+    sampleDate?: string;  // Date de prélèvement (ISO format)
     rawText?: string;
     confidence: 'high' | 'medium' | 'low' | 'none';
     ocrUsed?: boolean;  // Indicates if Tesseract OCR was used
@@ -251,7 +253,7 @@ function extractPatientSection(text: string): string {
     // Header typically ends before patient info and contains these keywords
     const headerEndMarkers = [
         /(?:Biologiste|Directeur|Responsable|Pharmacien|Docteur)\s*[:\-]?\s*(?:Dr\.?|Pr\.?)?\s*[A-ZÀ-Ÿ][a-zà-ÿ]+\s+[A-ZÀ-Ÿ][a-zà-ÿ]+/gi,
-        /(?:Agrément|Accréditation|N°\s*Agrément)/i,
+        /(?:Agrément|Accréditation|N°\s*Agrément)/gi,  // FIXED: added global flag for matchAll
         /(?:Tél|Tel|Fax)\s*[:\-]?\s*[\d\s\+\-\.]+/gi,
     ];
 
@@ -361,20 +363,69 @@ function detectPatientName(text: string): { firstName?: string; lastName?: strin
     const dynamicKeywords = getOcrKeywords();
 
     // Generate regex patterns from dynamic keywords
+    // Match if keyword appears in the 80 chars BEFORE a name (not just at end)
     const STAFF_ROLE_PATTERNS = dynamicKeywords.map(keyword => {
-        // Escape special regex characters
-        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(`${escaped}[s]?\\s*[:.\\-]?\\s*$`, 'i');
+        // Escape special regex characters and handle spaces in multi-word keywords
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+        // Match keyword followed by optional 's', colon, dash, or whitespace
+        return new RegExp(`${escaped}s?(?:\\s*[:.\\-])?`, 'i');
     });
 
     // Add list context pattern (names after dash in staff lists)
     STAFF_ROLE_PATTERNS.push(/\-\s*$/);
 
     // Staff keywords for simple string matching (used in Code Patient filtering)
-    const STAFF_KEYWORDS = dynamicKeywords;
+    // Convert multi-word keywords to single lowercase string for includes() check
+    const STAFF_KEYWORDS = dynamicKeywords.map(kw => kw.toLowerCase().replace(/\s+/g, ' '));
 
     // =========================================================================
-    // PRIORITY 1: "Mlle" (Mademoiselle) - Very specific, almost always patient
+    // PRIORITY 0: Look for name BEFORE "Code Patient" marker
+    // In Cameroon labs format: "Mr TCHAMBA Roland\nCode Patient 2601122170"
+    // The name appears ON THE LINE BEFORE or SAME LINE as Code Patient
+    // Multiple patterns tried with increasing flexibility
+    // =========================================================================
+
+    // Pattern 1: Title + UPPERCASE LastName + Capitalized FirstName before Code Patient
+    const codePatientPattern1 = /(?:Mr\.?|Mme\.?|Mlle\.?|M\.)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s*[\n\r\s]*Code\s*Patient/i;
+    const match1 = text.match(codePatientPattern1);
+
+    if (match1) {
+        console.log('[PDF Extractor] Pattern 1 matched:', match1[0]);
+        result.lastName = match1[1].charAt(0).toUpperCase() + match1[1].slice(1).toLowerCase();
+        result.firstName = match1[2].charAt(0).toUpperCase() + match1[2].slice(1).toLowerCase();
+        return result;
+    }
+
+    // Pattern 2: Just look for any name near Code Patient (within 50 chars before)
+    const codePatientIdx = text.search(/Code\s*Patient/i);
+    if (codePatientIdx > 0) {
+        const textBefore = text.substring(Math.max(0, codePatientIdx - 80), codePatientIdx);
+        console.log('[PDF Extractor] Text before Code Patient:', JSON.stringify(textBefore));
+
+        // Try to find title + name pattern in this chunk
+        const nameMatch = textBefore.match(/(?:Mr\.?|Mme\.?|Mlle\.?|M\.)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿa-zà-ÿ]+)/i);
+        if (nameMatch) {
+            console.log('[PDF Extractor] Pattern 2 matched:', nameMatch[0]);
+            result.lastName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+            result.firstName = nameMatch[2].charAt(0).toUpperCase() + nameMatch[2].slice(1).toLowerCase();
+            return result;
+        }
+    }
+
+    // =========================================================================
+    // PRIORITY 1: Explicit "NOM DU PATIENT:" or "PATIENT:" marker
+    // =========================================================================
+    const nomDuPatientPattern = /(?:NOM\s+DU\s+PATIENT|NOM\s+PATIENT|PATIENT)\s*[:\-]?\s*(?:Mlle|Mme|M\.?|Mr\.?|Mrs\.?)?\s*([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/i;
+    const nomDuPatientMatch = text.match(nomDuPatientPattern);
+
+    if (nomDuPatientMatch) {
+        result.lastName = nomDuPatientMatch[1].charAt(0).toUpperCase() + nomDuPatientMatch[1].slice(1).toLowerCase();
+        result.firstName = nomDuPatientMatch[2].charAt(0).toUpperCase() + nomDuPatientMatch[2].slice(1).toLowerCase();
+        return result;
+    }
+
+    // =========================================================================
+    // PRIORITY 2: "Mlle" (Mademoiselle) - Very specific, almost always patient
     // =========================================================================
     const mllePattern = /Mlle\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/i;
     const mlleMatch = text.match(mllePattern);
@@ -386,7 +437,7 @@ function detectPatientName(text: string): { firstName?: string; lastName?: strin
     }
 
     // =========================================================================
-    // PRIORITY 2: "Code Patient" marker - Look backwards for patient name
+    // PRIORITY 3: "Code Patient" marker - Look backwards for patient name (legacy)
     // =========================================================================
     const codePatientIndex = text.search(/Code\s*Patient/i);
 
@@ -411,9 +462,10 @@ function detectPatientName(text: string): { firstName?: string; lastName?: strin
     }
 
     // =========================================================================
-    // PRIORITY 3: Title + Name NOT preceded by staff role
+    // PRIORITY 4: Title + Name NOT preceded by staff role
+    // NOTE: Added \b word boundary to prevent matching "M" from email endings like ".cm"
     // =========================================================================
-    const titleNamePattern = /(?:Mlle|Mme|M\.?|Mr|Mrs)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/gi;
+    const titleNamePattern = /(?:^|\s)(?:Mlle|Mme|M\.|Mr\.?|Mrs\.?)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/gi;
     const allMatches = [...text.matchAll(titleNamePattern)];
 
     for (const match of allMatches) {
@@ -478,24 +530,124 @@ function detectPatientName(text: string): { firstName?: string; lastName?: strin
 
 /**
  * Detect folder/dossier reference
- * Looks for patterns like "DOS-XXXX", "REF-XXXX", "N° XXXX"
+ * Looks for patterns like "DOS-XXXX", "REF-XXXX", "N° XXXX", "Référence : XXXXX"
  */
 function detectFolderRef(text: string): string | undefined {
     const patterns = [
-        // DOS-2024-001, REF-123456
-        /\b(DOS|REF|DOSSIER|N°)\s*[-:]?\s*([A-Z0-9\-]{4,})/i,
+        // "Référence : 2601122170" (exact Cameroon format with space before colon)
+        /R[ée]f[ée]rence\s*[:\-]\s*(\d{6,})/i,
+        // Code Patient number (often same as reference in Cameroon)
+        /Code\s*Patient\s*[:\-]?\s*(\d{6,})/i,
+        // DOS-2024-001, REF-123456, DOSSIER-XXX
+        /\b(DOS|REF|DOSSIER)\s*[-:]?\s*([A-Z0-9\-\/]{4,})/i,
+        // N° XXXXX or N°: XXXXX
+        /\bN[°o]\s*[:\-]?\s*([A-Z0-9\-\/]{4,})/i,
         // Numéro de dossier: XXXXX
-        /(?:Num[ée]ro|N[°o])\s*(?:de\s*)?(?:dossier|ref)\s*[:\-]\s*([A-Z0-9\-]{4,})/i,
+        /(?:Num[ée]ro|N[°o])\s*(?:de\s*)?(?:dossier|ref|référence)\s*[:\-]?\s*([A-Z0-9\-\/]{4,})/i,
         // ID Patient: XXXXX
-        /ID\s*(?:Patient|Dossier)\s*[:\-]\s*([A-Z0-9\-]{4,})/i,
+        /ID\s*(?:Patient|Dossier)\s*[:\-]?\s*([A-Z0-9\-\/]{4,})/i,
+        // Ref: XXXXX (short form)
+        /\bRef\s*[:\-]\s*([A-Z0-9\-\/]{4,})/i,
+        // Standalone pattern: XXX-YYYY-NNN (common lab formats)
+        /\b([A-Z]{2,4}[\-\/]\d{4}[\-\/]\d{3,6})\b/i,
     ];
 
     for (const pattern of patterns) {
         const match = text.match(pattern);
         if (match) {
+            // Get the captured group (could be match[1] or match[2] depending on pattern)
             const ref = match[2] || match[1];
-            if (ref && ref.length >= 4) {
+            if (ref && ref.length >= 4 && ref.length <= 30) {
                 return ref.toUpperCase();
+            }
+        }
+    }
+
+    return undefined;
+}
+
+/**
+ * Detect patient civility (M., Mme, Mlle) from text
+ * Looks for civility preceding patient name
+ */
+function detectCivility(text: string): 'M' | 'Mme' | 'Mlle' | undefined {
+    // Look for civility patterns near patient context
+    const patterns = [
+        // "Patient: Mlle LASTNAME" or "Patient: Mme. LASTNAME"
+        /(?:Patient|Patiente?)\s*[:\-]?\s*(Mlle|Mme|M\.?)\s+[A-ZÀ-Ÿ]/i,
+        // "Mlle LASTNAME Firstname" (standalone)
+        /\b(Mlle)\s+[A-ZÀ-Ÿ][a-zà-ÿ]+/i,
+        // "Mme LASTNAME" or "Mme. LASTNAME"
+        /\b(Mme\.?)\s+[A-ZÀ-Ÿ][a-zà-ÿ]+/i,
+        // "M. LASTNAME" or "Mr LASTNAME" (but not in header context)
+        /(?:Patient|Nom)\s*[:\-]?\s*(M\.?|Mr\.?)\s+[A-ZÀ-Ÿ][a-zà-ÿ]+/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+            const civility = match[1].toLowerCase().replace('.', '');
+            if (civility === 'mlle') return 'Mlle';
+            if (civility === 'mme') return 'Mme';
+            if (civility === 'm' || civility === 'mr') return 'M';
+        }
+    }
+
+    return undefined;
+}
+
+/**
+ * Detect sample/collection date from text
+ * Looks for patterns like "Date de prélèvement:", "Prélevé le", etc.
+ * Handles both accented and non-accented text (PDF text extraction may lose accents)
+ */
+function detectSampleDate(text: string): string | undefined {
+    // Normalize text to handle accent variations (prélèvement vs PRELEVEMENT)
+    const normalizedText = text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+        .toLowerCase();
+
+    const patterns = [
+        // "PRELEVEMENT DU : DD-MM-YYYY" or "PRELEVEMENT DU: DD/MM/YYYY" (exact Cameroon format)
+        /prelevement\s+du\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // "DATE DE PRELEVEMENT: DD/MM/YYYY" (handles PRELEVEMENT without accents)
+        /date\s+de\s+prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // "DATE PRELEVEMENT: DD/MM/YYYY"
+        /date\s+prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // "PRELEVE LE DD/MM/YYYY" or "PRELEVEMENT LE DD/MM/YYYY"
+        /prelev(?:e|ement)\s*(?:le|du)?\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // "PRELEVEMENT: DD/MM/YYYY"
+        /prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // "RECUEILLI LE DD/MM/YYYY"
+        /recueilli\s+le\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // "DATE PREL." or "DATE PREL:" abbreviated
+        /date\s+prel\.?\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        // Generic "DATE: DD/MM/YYYY" (lower priority)
+        /date\s*[:\-]\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+    ];
+
+    for (const pattern of patterns) {
+        const match = normalizedText.match(pattern);
+        if (match && match[1]) {
+            // Parse the date
+            const dateStr = match[1].replace(/\s/g, '').replace(/[\-.]/g, '/');
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                let day = parseInt(parts[0], 10);
+                let month = parseInt(parts[1], 10);
+                let year = parseInt(parts[2], 10);
+
+                // Handle 2-digit year
+                if (year < 100) {
+                    year += year > 50 ? 1900 : 2000;
+                }
+
+                // Validate date
+                if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2100) {
+                    // Return ISO format (YYYY-MM-DD)
+                    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                }
             }
         }
     }
@@ -604,6 +756,8 @@ export async function extractPdfData(
         const name = detectPatientName(rawText);
         const folderRef = detectFolderRef(rawText);
         const prescriberName = detectPrescriber(rawText);
+        const civility = detectCivility(rawText);
+        const sampleDate = detectSampleDate(rawText);
 
         const extracted: ExtractedData = {
             patientPhone: phone,
@@ -611,6 +765,8 @@ export async function extractPdfData(
             patientLastName: name.lastName,
             folderRef: folderRef,
             prescriberName: prescriberName,
+            civility: civility,
+            sampleDate: sampleDate,
             rawText: rawText.substring(0, 500), // Keep first 500 chars for debugging
             confidence: 'none',
             ocrUsed: ocrUsed,
@@ -624,6 +780,8 @@ export async function extractPdfData(
             lastName: extracted.patientLastName,
             folderRef: extracted.folderRef,
             prescriberName: extracted.prescriberName,
+            civility: extracted.civility,
+            sampleDate: extracted.sampleDate,
             confidence: extracted.confidence,
             ocrUsed: extracted.ocrUsed,
         });

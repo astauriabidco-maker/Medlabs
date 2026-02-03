@@ -1,3 +1,6 @@
+// Sentry must be imported FIRST for instrumentation to work
+import './instrument';
+
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -7,6 +10,7 @@ import { join } from 'path';
 import helmet from 'helmet';
 import { validateEnvironment } from './config/env.validation';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   // Validate environment before starting
@@ -21,6 +25,62 @@ async function bootstrap() {
 
   // Global API prefix
   app.setGlobalPrefix('api');
+
+  // ============================================
+  // SWAGGER / OPENAPI DOCUMENTATION
+  // ============================================
+  const config = new DocumentBuilder()
+    .setTitle('MedLab API')
+    .setDescription(`
+## API de la Plateforme MedLab
+
+Documentation complète de l'API REST pour les intégrations **LIS (Laboratory Information System)** et **HL7**.
+
+### Authentification
+Toutes les routes protégées nécessitent un token JWT Bearer.
+
+### Modules Principaux
+- **Auth** - Authentification et gestion des tokens
+- **Results** - Envoi et gestion des résultats de laboratoire
+- **Tenants** - Gestion multi-laboratoire
+- **Integration** - API pour systèmes externes (LIS, HL7)
+- **Sync** - Synchronisation Windows/Desktop
+
+### Contact
+Pour questions d'intégration: support@medlab.cm
+    `)
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth'
+    )
+    .addTag('Auth', 'Authentication endpoints')
+    .addTag('Results', 'Medical results management')
+    .addTag('Tenants', 'Multi-tenant laboratory management')
+    .addTag('Integration', 'External system integrations (LIS/HL7)')
+    .addTag('Sync', 'Windows desktop synchronization')
+    .addTag('Stats', 'Analytics and statistics')
+    .addTag('OCR', 'OCR configuration for PDF extraction')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+    customSiteTitle: 'MedLab API Documentation',
+  });
+
+  console.log('📚 Swagger documentation available at /api/docs');
 
   // Global Exception Filter (Prisma errors → proper HTTP codes)
   app.useGlobalFilters(new GlobalHttpExceptionFilter());

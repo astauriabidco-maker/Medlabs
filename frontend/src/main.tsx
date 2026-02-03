@@ -1,3 +1,34 @@
+// Sentry Error Monitoring
+import * as Sentry from '@sentry/react';
+
+// Initialize Sentry if DSN is configured
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: import.meta.env.MODE,
+
+    // Performance Monitoring
+    tracesSampleRate: import.meta.env.MODE === 'production' ? 0.2 : 1.0,
+
+    // Replay for debugging user sessions (optional)
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration(),
+    ],
+
+    // Ignore common non-critical errors
+    ignoreErrors: [
+      'ResizeObserver loop',
+      'Non-Error promise rejection',
+      /Loading chunk .* failed/,
+    ],
+  });
+  console.log('[Sentry] Frontend monitoring initialized');
+}
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -44,6 +75,7 @@ import { SystemAlerts } from './pages/admin/SystemAlerts.tsx';
 import { FinancialDashboard } from './pages/admin/FinancialDashboard.tsx';
 import { GlobalUsers } from './pages/admin/GlobalUsers.tsx';
 import { AuditLogs } from './pages/admin/AuditLogs.tsx';
+import OcrConfiguration from './pages/admin/OcrConfiguration.tsx';
 
 function DashboardRoutes() {
   return (
@@ -62,6 +94,7 @@ function DashboardRoutes() {
         <Route path="system-alerts" element={<SystemAlerts />} />
         <Route path="financial" element={<FinancialDashboard />} />
         <Route path="audit" element={<AuditLogs />} />
+        <Route path="ocr-config" element={<OcrConfiguration />} />
 
         {/* Lab Admin Routes */}
         <Route path="team" element={<Team />} />
@@ -88,32 +121,54 @@ function DashboardRoutes() {
   )
 }
 
+// Error fallback component
+function ErrorFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
+        <h1 className="text-2xl font-bold text-red-600 mb-4">Oops! Une erreur est survenue</h1>
+        <p className="text-gray-600 mb-6">
+          Nous avons été notifiés et travaillons à résoudre le problème.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Rafraîchir la page
+        </button>
+      </div>
+    </div>
+  );
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <ToastProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/become-partner" element={<BecomePartner />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+    <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
+      <AuthProvider>
+        <ToastProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/become-partner" element={<BecomePartner />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
-            <Route path="/expired" element={<ExpiredDocument />} />
-            <Route path="/guest/access" element={<GuestAccess />} />
-            <Route path="/dashboard/*" element={<DashboardRoutes />} />
+              <Route path="/expired" element={<ExpiredDocument />} />
+              <Route path="/guest/access" element={<GuestAccess />} />
+              <Route path="/dashboard/*" element={<DashboardRoutes />} />
 
-            {/* Patient Portal Routes */}
-            <Route path="/patient/:slug/login" element={<PatientLogin />} />
-            <Route path="/patient/:slug/dashboard" element={<PatientDashboard />} />
+              {/* Patient Portal Routes */}
+              <Route path="/patient/:slug/login" element={<PatientLogin />} />
+              <Route path="/patient/:slug/dashboard" element={<PatientDashboard />} />
 
-            {/* Public Booking Widget */}
-            <Route path="/book/:slug" element={<Booking />} />
-          </Routes>
-        </BrowserRouter>
-      </ToastProvider>
-    </AuthProvider>
+              {/* Public Booking Widget */}
+              <Route path="/book/:slug" element={<Booking />} />
+            </Routes>
+          </BrowserRouter>
+        </ToastProvider>
+      </AuthProvider>
+    </Sentry.ErrorBoundary>
   </StrictMode>,
 )

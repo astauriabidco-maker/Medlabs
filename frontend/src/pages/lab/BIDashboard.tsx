@@ -62,6 +62,18 @@ export default function BIDashboard() {
         setError(null);
         try {
             const res = await api.get(`/api/stats/dashboard?period=${period}`);
+
+            // Handle non-OK responses gracefully
+            if (!res.ok) {
+                if (res.status === 403) {
+                    setDisabled(true);
+                    setError('Accès non autorisé. Cette fonctionnalité est réservée aux administrateurs de laboratoire.');
+                } else {
+                    setError(`Erreur ${res.status}: ${res.statusText}`);
+                }
+                return;
+            }
+
             const data = await res.json();
 
             if (data.error === 'FEATURE_DISABLED') {

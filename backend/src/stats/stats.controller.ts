@@ -19,7 +19,7 @@ export class StatsController {
      * GET /api/stats/dashboard
      */
     @Get('dashboard')
-    @Roles('LAB_ADMIN')
+    @Roles('LAB_ADMIN', 'SUPER_ADMIN')
     async getDashboard(
         @Request() req: any,
         @Query('period') period?: '7d' | '30d' | '90d' | 'year'

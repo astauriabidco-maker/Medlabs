@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, IsIn, IsDateString } from 'class-validator';
 
 export class CreateResultDto {
     @IsNotEmpty()
@@ -26,4 +26,13 @@ export class CreateResultDto {
     @IsOptional()
     @IsString()
     prescriberName?: string;  // Médecin prescripteur (for BI Dashboard)
+
+    @IsOptional()
+    @IsString()
+    @IsIn(['M', 'Mme', 'Mlle', ''])
+    civility?: string;  // Civilité patient
+
+    @IsOptional()
+    @IsString()
+    sampleDate?: string;  // Date de prélèvement (YYYY-MM-DD)
 }

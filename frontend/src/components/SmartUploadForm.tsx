@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { UploadCloud, FileCheck, AlertTriangle, Loader2, X, Sparkles, Lock, Wallet, Stethoscope } from 'lucide-react';
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardContent } from './ui-basic';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,9 @@ interface FormData {
     isBlocked: boolean;
     price: string;
     prescriberName: string;  // Médecin prescripteur (for BI Dashboard)
+    consentGiven: boolean;   // Consentement patient pour envoi électronique
+    civility: '' | 'M' | 'Mme' | 'Mlle';  // Civilité patient
+    sampleDate: string;  // Date de prélèvement (ISO format)
 }
 
 export function SmartUploadForm() {
@@ -45,7 +48,10 @@ export function SmartUploadForm() {
         phone: '',
         isBlocked: false,
         price: '',
-        prescriberName: ''
+        prescriberName: '',
+        consentGiven: false,
+        civility: '',
+        sampleDate: ''
     });
 
     // Access Code Modal state
@@ -53,7 +59,7 @@ export function SmartUploadForm() {
     const [accessCode, setAccessCode] = useState('');
 
     // Charger la liste des prescripteurs depuis le tenant
-    React.useEffect(() => {
+    useEffect(() => {
         const loadPrescribers = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -108,6 +114,8 @@ export function SmartUploadForm() {
                     lastName: extracted.patientLastName || prev.lastName,
                     phone: extracted.patientPhone || prev.phone,
                     folderRef: extracted.folderRef || prev.folderRef,
+                    civility: extracted.civility || prev.civility,
+                    sampleDate: extracted.sampleDate || prev.sampleDate,
                     // prescriberName: NE PAS auto-remplir, laissé vide pour sélection manuelle
                 }));
             }
@@ -235,6 +243,16 @@ export function SmartUploadForm() {
             formData.append('prescriberName', form.prescriberName);
         }
 
+        // Civility (patient title)
+        if (form.civility) {
+            formData.append('civility', form.civility);
+        }
+
+        // Sample collection date
+        if (form.sampleDate) {
+            formData.append('sampleDate', form.sampleDate);
+        }
+
         try {
             // Mock API call
             const response = await fetch('/api/results', {
@@ -266,7 +284,10 @@ export function SmartUploadForm() {
                 phone: '',
                 isBlocked: false,
                 price: '',
-                prescriberName: ''
+                prescriberName: '',
+                consentGiven: false,
+                civility: '',
+                sampleDate: ''
             });
 
         } catch (err: any) {
@@ -414,6 +435,34 @@ export function SmartUploadForm() {
                         </div>
                     </div>
 
+                    {/* Civilité + Date de Prélèvement */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="civility">Civilité</Label>
+                            <select
+                                id="civility"
+                                value={form.civility}
+                                onChange={e => setForm({ ...form, civility: e.target.value as '' | 'M' | 'Mme' | 'Mlle' })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                                <option value="">-- Sélectionner --</option>
+                                <option value="M">M.</option>
+                                <option value="Mme">Mme</option>
+                                <option value="Mlle">Mlle</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="sampleDate">Date de Prélèvement</Label>
+                            <Input
+                                id="sampleDate"
+                                type="date"
+                                value={form.sampleDate}
+                                onChange={e => setForm({ ...form, sampleDate: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Prénom + Nom */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="firstName">{t('upload.firstName')}</Label>
@@ -525,8 +574,42 @@ export function SmartUploadForm() {
                         )}
                     </div>
 
+                    {/* Patient Consent Section - Conformité Loi Camerounaise */}
+                    <div className="border-t pt-4 mt-4">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <input
+                                    type="checkbox"
+                                    id="consentGiven"
+                                    checked={form.consentGiven}
+                                    onChange={e => setForm({ ...form, consentGiven: e.target.checked })}
+                                    className="w-5 h-5 mt-0.5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
+                                />
+                                <label htmlFor="consentGiven" className="text-sm text-gray-700 cursor-pointer leading-relaxed">
+                                    <span className="font-medium text-gray-900">
+                                        Je confirme avoir recueilli l'accord du patient pour :
+                                    </span>
+                                    <ul className="mt-2 ml-4 list-disc space-y-1 text-gray-600">
+                                        <li>L'envoi de ses résultats par voie électronique (WhatsApp et/ou Email)</li>
+                                        <li>L'utilisation de ses données personnelles uniquement dans le cadre de cet examen médical</li>
+                                    </ul>
+                                    <p className="mt-2 text-xs text-gray-500 italic">
+                                        Conformément à la Loi n°2010/012 relative à la cybersécurité et cybercriminalité au Cameroun,
+                                        aucune exploitation commerciale ne sera faite de ces informations.
+                                    </p>
+                                </label>
+                            </div>
+                        </div>
+                        {!form.consentGiven && file && (
+                            <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                Vous devez confirmer le consentement du patient pour envoyer le résultat
+                            </p>
+                        )}
+                    </div>
+
                     <div className="pt-4">
-                        <Button type="submit" className="w-full" disabled={loading || !file || !validatePhone(form.phone) || !form.dob}>
+                        <Button type="submit" className="w-full" disabled={loading || !file || !validatePhone(form.phone) || !form.dob || !form.consentGiven}>
                             {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {loading ? t('upload.btn_uploading') : t('upload.btn_send')}
                         </Button>
