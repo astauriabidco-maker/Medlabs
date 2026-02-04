@@ -42,6 +42,7 @@ import { ReportingModule } from './reporting/reporting.module';
 import { SignaturesModule } from './signatures/signatures.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -98,6 +99,8 @@ import { RealtimeModule } from './realtime/realtime.module';
     SignaturesModule,
     WorkflowsModule,
     RealtimeModule,
+    // Production Monitoring
+    HealthModule,
   ],
   controllers: [AppController, PlatformConfigController],
   providers: [
