@@ -161,10 +161,17 @@ export function GlobalUsers() {
             key: 'role',
             header: t('users.table.role'),
             render: (row: GlobalUser) => {
-                const colors = {
+                const colors: Record<string, string> = {
                     SUPER_ADMIN: 'purple',
+                    PLATFORM_MANAGER: 'violet',
+                    PLATFORM_SUPPORT: 'indigo',
+                    PLATFORM_SALES: 'pink',
+                    PLATFORM_ACCOUNTANT: 'orange',
                     LAB_ADMIN: 'blue',
-                    TECHNICIAN: 'gray'
+                    BUSINESS_MANAGER: 'amber',
+                    MANAGER: 'green',
+                    TECHNICIAN: 'gray',
+                    RECEPTIONIST: 'cyan'
                 };
                 return <Badge variant={colors[row.role] as any}>{t(`roles.${row.role}`)}</Badge>;
             }
@@ -231,9 +238,20 @@ export function GlobalUsers() {
                     onChange={e => setRoleFilter(e.target.value)}
                 >
                     <option value="ALL">{t('users.allRoles')}</option>
-                    <option value="SUPER_ADMIN">{t('roles.SUPER_ADMIN')}</option>
-                    <option value="LAB_ADMIN">{t('roles.LAB_ADMIN')}</option>
-                    <option value="TECHNICIAN">{t('roles.TECHNICIAN')}</option>
+                    <optgroup label="Plateforme">
+                        <option value="SUPER_ADMIN">{t('roles.SUPER_ADMIN')}</option>
+                        <option value="PLATFORM_MANAGER">{t('roles.PLATFORM_MANAGER')}</option>
+                        <option value="PLATFORM_SUPPORT">{t('roles.PLATFORM_SUPPORT')}</option>
+                        <option value="PLATFORM_SALES">{t('roles.PLATFORM_SALES')}</option>
+                        <option value="PLATFORM_ACCOUNTANT">{t('roles.PLATFORM_ACCOUNTANT')}</option>
+                    </optgroup>
+                    <optgroup label="Laboratoire">
+                        <option value="LAB_ADMIN">{t('roles.LAB_ADMIN')}</option>
+                        <option value="BUSINESS_MANAGER">{t('roles.BUSINESS_MANAGER')}</option>
+                        <option value="MANAGER">{t('roles.MANAGER')}</option>
+                        <option value="TECHNICIAN">{t('roles.TECHNICIAN')}</option>
+                        <option value="RECEPTIONIST">{t('roles.RECEPTIONIST')}</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -287,11 +305,22 @@ export function GlobalUsers() {
                             value={formData.role}
                             onChange={e => setFormData({ ...formData, role: e.target.value as UserRole })}
                         >
-                            {!formData.tenantId && <option value="SUPER_ADMIN">{t('roles.SUPER_ADMIN')}</option>}
+                            {!formData.tenantId && (
+                                <>
+                                    <option value="SUPER_ADMIN">{t('roles.SUPER_ADMIN')}</option>
+                                    <option value="PLATFORM_MANAGER">{t('roles.PLATFORM_MANAGER')}</option>
+                                    <option value="PLATFORM_SUPPORT">{t('roles.PLATFORM_SUPPORT')}</option>
+                                    <option value="PLATFORM_SALES">{t('roles.PLATFORM_SALES')}</option>
+                                    <option value="PLATFORM_ACCOUNTANT">{t('roles.PLATFORM_ACCOUNTANT')}</option>
+                                </>
+                            )}
                             {formData.tenantId && (
                                 <>
                                     <option value="LAB_ADMIN">{t('roles.LAB_ADMIN')}</option>
+                                    <option value="BUSINESS_MANAGER">{t('roles.BUSINESS_MANAGER')}</option>
+                                    <option value="MANAGER">{t('roles.MANAGER')}</option>
                                     <option value="TECHNICIAN">{t('roles.TECHNICIAN')}</option>
+                                    <option value="RECEPTIONIST">{t('roles.RECEPTIONIST')}</option>
                                 </>
                             )}
                         </select>
@@ -325,11 +354,22 @@ export function GlobalUsers() {
                             value={formData.role}
                             onChange={e => setFormData({ ...formData, role: e.target.value as UserRole })}
                         >
-                            {!formData.tenantId && <option value="SUPER_ADMIN">{t('roles.SUPER_ADMIN')}</option>}
+                            {!formData.tenantId && (
+                                <>
+                                    <option value="SUPER_ADMIN">{t('roles.SUPER_ADMIN')}</option>
+                                    <option value="PLATFORM_MANAGER">{t('roles.PLATFORM_MANAGER')}</option>
+                                    <option value="PLATFORM_SUPPORT">{t('roles.PLATFORM_SUPPORT')}</option>
+                                    <option value="PLATFORM_SALES">{t('roles.PLATFORM_SALES')}</option>
+                                    <option value="PLATFORM_ACCOUNTANT">{t('roles.PLATFORM_ACCOUNTANT')}</option>
+                                </>
+                            )}
                             {formData.tenantId && (
                                 <>
                                     <option value="LAB_ADMIN">{t('roles.LAB_ADMIN')}</option>
+                                    <option value="BUSINESS_MANAGER">{t('roles.BUSINESS_MANAGER')}</option>
+                                    <option value="MANAGER">{t('roles.MANAGER')}</option>
                                     <option value="TECHNICIAN">{t('roles.TECHNICIAN')}</option>
+                                    <option value="RECEPTIONIST">{t('roles.RECEPTIONIST')}</option>
                                 </>
                             )}
                         </select>

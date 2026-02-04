@@ -38,6 +38,10 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { DemoDataModule } from './admin/demo-data.module';
 import { OcrConfigModule } from './ocr-config/ocr-config.module';
 import { RedisCacheModule } from './cache/redis-cache.module';
+import { ReportingModule } from './reporting/reporting.module';
+import { SignaturesModule } from './signatures/signatures.module';
+import { WorkflowsModule } from './workflows/workflows.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -89,6 +93,11 @@ import { RedisCacheModule } from './cache/redis-cache.module';
     SubscriptionsModule,
     DemoDataModule,
     OcrConfigModule,
+    // New Premium Modules
+    ReportingModule,
+    SignaturesModule,
+    WorkflowsModule,
+    RealtimeModule,
   ],
   controllers: [AppController, PlatformConfigController],
   providers: [

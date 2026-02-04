@@ -198,7 +198,7 @@ export class TeamService {
                 firstName: dto.firstName,
                 lastName: dto.lastName,
                 customRoleId: dto.customRoleId,
-                role: 'VIEWER', // Legacy enum fallback
+                role: 'RECEPTIONIST', // Minimal role - actual permissions via customRoleId
                 status: 'INVITED',
             },
             select: {

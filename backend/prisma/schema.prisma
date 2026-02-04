@@ -16,10 +16,19 @@ datasource db {
 // --------------------------------------
 
 enum UserRole {
-  SUPER_ADMIN // Platform Owner
-  LAB_ADMIN // Client Admin
-  TECHNICIAN // Operational Staff
-  VIEWER // Front desk / Read-only
+  // === Platform Roles (tenantId = null) ===
+  SUPER_ADMIN         // Platform Owner - full access
+  PLATFORM_MANAGER    // Platform management - tenants, users, alerts
+  PLATFORM_SUPPORT    // Technical support - tenants, logs, users (read)
+  PLATFORM_SALES      // Commercial - pricing, subscriptions
+  PLATFORM_ACCOUNTANT // Finance - financial dashboard, payments
+
+  // === Tenant Roles (tenantId = labId) ===
+  LAB_ADMIN         // Technical admin - full tenant access
+  BUSINESS_MANAGER  // Commercial/Finance - stats, reports, payments
+  MANAGER           // Operations supervisor - daily operations
+  TECHNICIAN        // Lab technician - upload results, alerts
+  RECEPTIONIST      // Front desk - read-only, appointments
 }
 
 enum UserStatus {
@@ -432,7 +441,7 @@ model User {
   // Profile
   firstName String?  @map("first_name")
   lastName  String?  @map("last_name")
-  role      UserRole @default(VIEWER)  // Legacy enum, kept for SUPER_ADMIN
+  role      UserRole @default(RECEPTIONIST)  // Default role for new users
   lastLoginAt DateTime? @map("last_login_at")
 
   // Dynamic RBAC
@@ -523,6 +532,11 @@ model Document {
   whatsappStatus     WhatsAppNotificationStatus? @map("whatsapp_status")
   whatsappMessageId  String?                     @map("whatsapp_message_id")
   whatsappSentAt     DateTime?                   @map("whatsapp_sent_at")
+
+  // E-Signature (SIGNATURE module)
+  signedAt      DateTime? @map("signed_at")
+  signedById    String?   @map("signed_by_id")
+  signatureHash String?   @map("signature_hash")
 
   // Payment Transactions
   transactions Transaction[]

@@ -8,6 +8,8 @@ import * as crypto from 'crypto';
 export enum Feature {
     // Automation
     AUTO_SYNC = 'AUTO_SYNC',                   // Windows Connector automation
+    E_SIGNATURE = 'E_SIGNATURE',               // Electronic signature for results
+    WORKFLOW_ENGINE = 'WORKFLOW_ENGINE',       // Automated workflow rules engine
 
     // Storage
     LONG_TERM_ARCHIVE = 'LONG_TERM_ARCHIVE',   // Extended data retention (generic)
@@ -16,9 +18,13 @@ export enum Feature {
 
     // Analytics & BI
     ANALYTICS_BI = 'ANALYTICS_BI',             // Business Intelligence Dashboard
+    REALTIME_DASHBOARD = 'REALTIME_DASHBOARD', // Real-time WebSocket dashboard
+    ADVANCED_REPORTING = 'ADVANCED_REPORTING', // Custom PDF reports & templates
+    RESULT_COMPARISON = 'RESULT_COMPARISON',   // Graphical result comparison
 
     // Patient Features
     PATIENT_PORTAL = 'PATIENT_PORTAL',         // Carnet de Santé patient
+    PATIENT_HISTORY = 'PATIENT_HISTORY',       // Complete patient history
     APPOINTMENTS = 'APPOINTMENTS',             // Online booking / Rendez-vous
 
     // Alerts & Notifications  
@@ -358,6 +364,60 @@ export class LicensingService {
                 description: 'Ajoutez un nombre illimité de techniciens et utilisateurs.',
                 active: features.includes(Feature.UNLIMITED_TEAM),
                 category: 'team',
+            },
+            // === NEW PREMIUM MODULES ===
+            // Automation - Premium
+            {
+                id: Feature.E_SIGNATURE,
+                name: 'Signature Électronique',
+                description: 'Signature électronique des résultats conforme aux normes médicales.',
+                active: features.includes(Feature.E_SIGNATURE),
+                category: 'automation',
+            },
+            {
+                id: Feature.WORKFLOW_ENGINE,
+                name: 'Moteur de Workflow',
+                description: 'Automatisez vos processus avec un moteur de règles configurable sans code.',
+                active: features.includes(Feature.WORKFLOW_ENGINE),
+                category: 'automation',
+            },
+            // Analytics - Premium
+            {
+                id: Feature.REALTIME_DASHBOARD,
+                name: 'Dashboard Temps Réel',
+                description: 'Notifications push instantanées et tableau de bord en temps réel avec WebSockets.',
+                active: features.includes(Feature.REALTIME_DASHBOARD),
+                category: 'analytics',
+            },
+            {
+                id: Feature.ADVANCED_REPORTING,
+                name: 'Reporting Avancé',
+                description: 'Génération de rapports PDF personnalisés avec votre branding.',
+                active: features.includes(Feature.ADVANCED_REPORTING),
+                category: 'analytics',
+            },
+            {
+                id: Feature.RESULT_COMPARISON,
+                name: 'Comparaison Graphique',
+                description: 'Visualisez l\'évolution des résultats avec des graphiques comparatifs.',
+                active: features.includes(Feature.RESULT_COMPARISON),
+                category: 'analytics',
+            },
+            // Patient - Premium
+            {
+                id: Feature.PATIENT_HISTORY,
+                name: 'Historique Patient Complet',
+                description: 'Consultez l\'historique complet des résultats d\'un patient sur plusieurs années.',
+                active: features.includes(Feature.PATIENT_HISTORY),
+                category: 'patient',
+            },
+            // Support - Premium
+            {
+                id: Feature.PRIORITY_SUPPORT,
+                name: 'Support Prioritaire',
+                description: 'Accès prioritaire au support technique avec temps de réponse garanti.',
+                active: features.includes(Feature.PRIORITY_SUPPORT),
+                category: 'communication',
             },
         ];
 

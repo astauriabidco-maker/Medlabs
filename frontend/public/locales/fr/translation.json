@@ -1,8 +1,15 @@
 {
     "roles": {
-        "SUPER_ADMIN": "Administrateur Plateforme",
-        "LAB_ADMIN": "Administrateur Laboratoire",
-        "TECHNICIAN": "Technicien"
+        "SUPER_ADMIN": "Super Admin",
+        "PLATFORM_MANAGER": "Manager Plateforme",
+        "PLATFORM_SUPPORT": "Support Technique",
+        "PLATFORM_SALES": "Commercial",
+        "PLATFORM_ACCOUNTANT": "Comptable",
+        "LAB_ADMIN": "Admin Labo",
+        "BUSINESS_MANAGER": "Responsable Commercial",
+        "MANAGER": "Responsable",
+        "TECHNICIAN": "Technicien",
+        "RECEPTIONIST": "Réceptionniste"
     },
     "nav": {
         "tenants": "Laboratoires Partenaires",

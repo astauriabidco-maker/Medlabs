@@ -36,11 +36,14 @@ interface NavItem {
     requiredFeature?: string; // Feature required to access this menu
 }
 
-type UserRole = 'SUPER_ADMIN' | 'LAB_ADMIN' | 'TECHNICIAN';
+type UserRole =
+    | 'SUPER_ADMIN' | 'PLATFORM_MANAGER' | 'PLATFORM_SUPPORT' | 'PLATFORM_SALES' | 'PLATFORM_ACCOUNTANT'
+    | 'LAB_ADMIN' | 'BUSINESS_MANAGER' | 'MANAGER' | 'TECHNICIAN' | 'RECEPTIONIST';
 
 const NAV_CONFIG: Record<UserRole, NavItem[]> = {
+    // === PLATFORM ROLES (no tenant) ===
     SUPER_ADMIN: [
-        // === Platform Management ===
+        // Full platform management
         { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
         { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
         { label: 'Users & Staff', translationKey: 'nav.users', path: '/dashboard/users', icon: <Users className="w-5 h-5" /> },
@@ -56,26 +59,77 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: 'Financial', translationKey: 'nav.financial', path: '/dashboard/financial', icon: <CreditCard className="w-5 h-5" /> },
         { label: 'OCR Config', translationKey: 'nav.ocrConfig', path: '/dashboard/ocr-config', icon: <FileText className="w-5 h-5" /> },
     ],
+    PLATFORM_MANAGER: [
+        // Daily platform management - tenants, users, alerts
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
+        { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
+        { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
+        { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
+    ],
+    PLATFORM_SUPPORT: [
+        // Technical support - tenants (read), logs, help
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
+        { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
+        { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
+        { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
+    ],
+    PLATFORM_SALES: [
+        // Commercial - pricing, subscriptions
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
+        { label: 'Pricing & Plans', translationKey: 'nav.pricing', path: '/dashboard/pricing-manager', icon: <CreditCard className="w-5 h-5" /> },
+        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
+    ],
+    PLATFORM_ACCOUNTANT: [
+        // Finance - financial dashboard, payments
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Financial', translationKey: 'nav.financial', path: '/dashboard/financial', icon: <CreditCard className="w-5 h-5" /> },
+        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
+        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
+    ],
+
+    // === TENANT ROLES (with tenantId) ===
     LAB_ADMIN: [
-        // Base features (always available)
+        // Technical admin - full access
         { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
         { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
         { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
         { label: 'My Team', translationKey: 'nav.team', path: '/dashboard/team', icon: <Users className="w-5 h-5" /> },
-
-        // Premium features - require specific features
         { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
         { label: 'Patient Portal', translationKey: 'nav.patientPortal', path: '/dashboard/patient-portal', icon: <Heart className="w-5 h-5" />, requiredFeature: 'PATIENT_PORTAL' },
         { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
         { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" />, requiredFeature: 'ANALYTICS_BI' },
-
-        // Always available
+        { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
         { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
         { label: 'Lab Settings', translationKey: 'nav.labSettings', path: '/dashboard/settings', icon: <Settings className="w-5 h-5" /> },
     ],
-    TECHNICIAN: [
+    BUSINESS_MANAGER: [
+        // Commercial/Finance - analytics, stats, payments (no technical config)
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
+        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" />, requiredFeature: 'ANALYTICS_BI' },
+    ],
+    MANAGER: [
+        // Operations supervisor - daily operations, appointments, alerts
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
         { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
         { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
+        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
+        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
+    ],
+    TECHNICIAN: [
+        // Lab technician - upload results, view history, handle alerts
+        { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
+        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
+        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
+    ],
+    RECEPTIONIST: [
+        // Front desk - read-only, manage appointments
+        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
+        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
+        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
     ],
 };
 

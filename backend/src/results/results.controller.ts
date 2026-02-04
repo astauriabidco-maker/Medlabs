@@ -60,4 +60,35 @@ export class ResultsController {
     remove(@User() user: any, @Param('id') id: string) {
         return this.resultsService.remove(user.tenantId, id);
     }
+
+    // ===== PATIENT_HISTORY MODULE =====
+
+    /**
+     * Get complete patient history with all results grouped by year
+     * Requires PATIENT_HISTORY feature
+     */
+    @Get('patient/:patientId/history')
+    @Roles('TECHNICIAN', 'LAB_ADMIN', 'BUSINESS_MANAGER', 'MANAGER')
+    getPatientHistory(
+        @User() user: any,
+        @Param('patientId') patientId: string,
+        @Query('years') years?: number,
+    ) {
+        return this.resultsService.getPatientHistory(user.tenantId, patientId, years || 5);
+    }
+
+    // ===== RESULT_COMPARISON MODULE =====
+
+    /**
+     * Compare multiple results to show trends
+     * Requires RESULT_COMPARISON feature
+     */
+    @Post('compare')
+    @Roles('TECHNICIAN', 'LAB_ADMIN', 'BUSINESS_MANAGER', 'MANAGER')
+    compareResults(
+        @User() user: any,
+        @Body('resultIds') resultIds: string[],
+    ) {
+        return this.resultsService.compareResults(user.tenantId, resultIds);
+    }
 }

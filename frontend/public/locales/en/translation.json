@@ -1,8 +1,15 @@
 {
     "roles": {
         "SUPER_ADMIN": "Platform Admin",
+        "PLATFORM_MANAGER": "Platform Manager",
+        "PLATFORM_SUPPORT": "Technical Support",
+        "PLATFORM_SALES": "Sales",
+        "PLATFORM_ACCOUNTANT": "Accountant",
         "LAB_ADMIN": "Lab Admin",
-        "TECHNICIAN": "Technician"
+        "BUSINESS_MANAGER": "Business Manager",
+        "MANAGER": "Operations Manager",
+        "TECHNICIAN": "Technician",
+        "RECEPTIONIST": "Receptionist"
     },
     "nav": {
         "tenants": "Partner Labs",

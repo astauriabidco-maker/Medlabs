@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import {
     Package,
     Check,
@@ -20,12 +21,16 @@ import {
     Calendar,
     AlertTriangle,
     Plug,
-    Users
+    Users,
+    ChevronDown,
+    ChevronUp,
+    BookOpen
 } from 'lucide-react';
 import { Button, Input, Label } from '@/components/ui-basic';
 import { useToast, Badge } from '@/components/ui-dashboard';
 import { api } from '@/lib/api';
 import { useTranslation } from 'react-i18next';
+import { getModuleDoc } from '@/data/modulesDocs';
 
 interface Module {
     id: string;
@@ -191,6 +196,105 @@ export function Marketplace() {
                 'Rôles personnalisables',
                 'Audit des actions',
                 'SSO / LDAP (bientôt)'
+            ]
+        },
+        // === NEW PREMIUM MODULES ===
+        {
+            id: 'E_SIGNATURE',
+            name: 'Signature Électronique',
+            description: 'Signature électronique des résultats conforme aux normes médicales et réglementaires.',
+            icon: <Key className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'E_SIGNATURE')?.active ?? false,
+            category: 'automation',
+            features: [
+                'Signature cryptographique sécurisée',
+                'Horodatage certifié',
+                'Conformité réglementaire',
+                'Traçabilité complète'
+            ]
+        },
+        {
+            id: 'PATIENT_HISTORY',
+            name: 'Historique Patient Complet',
+            description: 'Consultez l\'historique complet des résultats d\'un patient sur plusieurs années.',
+            icon: <Users className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'PATIENT_HISTORY')?.active ?? false,
+            category: 'patient',
+            features: [
+                'Historique sur 5 ans',
+                'Recherche avancée',
+                'Courbes d\'évolution',
+                'Export dossier médical'
+            ]
+        },
+        {
+            id: 'REALTIME_DASHBOARD',
+            name: 'Dashboard Temps Réel',
+            description: 'Notifications push instantanées et tableau de bord en temps réel avec WebSockets.',
+            icon: <RefreshCw className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'REALTIME_DASHBOARD')?.active ?? false,
+            category: 'analytics',
+            features: [
+                'Notifications push instantanées',
+                'Mises à jour en temps réel',
+                'Alertes sonores configurables',
+                'Indicateurs live'
+            ]
+        },
+        {
+            id: 'ADVANCED_REPORTING',
+            name: 'Reporting Avancé',
+            description: 'Génération de rapports PDF personnalisés avec votre branding et mise en page.',
+            icon: <Archive className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'ADVANCED_REPORTING')?.active ?? false,
+            category: 'analytics',
+            features: [
+                'Templates personnalisables',
+                'Branding laboratoire',
+                'Rapports programmés',
+                'Export multi-format (PDF, Excel, CSV)'
+            ]
+        },
+        {
+            id: 'RESULT_COMPARISON',
+            name: 'Comparaison Graphique',
+            description: 'Visualisez l\'évolution des résultats avec des graphiques comparatifs interactifs.',
+            icon: <BarChart3 className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'RESULT_COMPARISON')?.active ?? false,
+            category: 'analytics',
+            features: [
+                'Graphiques interactifs',
+                'Comparaison multi-périodes',
+                'Détection des tendances',
+                'Partage avec médecin'
+            ]
+        },
+        {
+            id: 'WORKFLOW_ENGINE',
+            name: 'Moteur de Workflow',
+            description: 'Automatisez vos processus avec un moteur de règles configurable sans code.',
+            icon: <Sparkles className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'WORKFLOW_ENGINE')?.active ?? false,
+            category: 'automation',
+            features: [
+                'Règles conditionnelles',
+                'Actions automatiques',
+                'Escalade intelligente',
+                'Logs d\'exécution'
+            ]
+        },
+        {
+            id: 'PRIORITY_SUPPORT',
+            name: 'Support Prioritaire',
+            description: 'Accès prioritaire au support technique avec temps de réponse garanti.',
+            icon: <MessageSquare className="w-6 h-6" />,
+            active: modules.find(m => m.id === 'PRIORITY_SUPPORT')?.active ?? false,
+            category: 'communication',
+            features: [
+                'Réponse sous 2h garantie',
+                'Chat en direct',
+                'Assistance téléphonique',
+                'Formation personnalisée'
             ]
         },
     ];
@@ -410,28 +514,65 @@ export function Marketplace() {
                                 ))}
                             </ul>
 
-                            {/* Module Actions / Config */}
-                            {module.active && module.id === 'AUTO_SYNC' && (
-                                <div className="pt-4 border-t">
-                                    <a href="/dashboard/integration" className="w-full">
-                                        <Button variant="outline" className="w-full">
-                                            <Plug className="w-4 h-4 mr-2" />
-                                            Configurer dans Intégration API
-                                        </Button>
-                                    </a>
-                                </div>
-                            )}
+                            {/* Module Documentation for Active Modules */}
+                            {module.active && (() => {
+                                const doc = getModuleDoc(module.id);
+                                if (!doc) return null;
+                                const isExpanded = expandedModule === module.id;
+                                return (
+                                    <div className="pt-4 border-t space-y-3">
+                                        {/* Expandable Quick Start Guide */}
+                                        <button
+                                            onClick={() => setExpandedModule(isExpanded ? null : module.id)}
+                                            className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left"
+                                        >
+                                            <span className="flex items-center gap-2 text-sm font-medium text-blue-700">
+                                                <Sparkles className="w-4 h-4" />
+                                                Guide de démarrage rapide
+                                            </span>
+                                            {isExpanded ? (
+                                                <ChevronUp className="w-4 h-4 text-blue-500" />
+                                            ) : (
+                                                <ChevronDown className="w-4 h-4 text-blue-500" />
+                                            )}
+                                        </button>
 
-                            {module.active && module.id === 'API_ADVANCED' && (
-                                <div className="pt-4 border-t">
-                                    <a href="/dashboard/integration" className="w-full">
-                                        <Button variant="outline" className="w-full">
-                                            <Plug className="w-4 h-4 mr-2" />
-                                            Voir la documentation API
-                                        </Button>
-                                    </a>
-                                </div>
-                            )}
+                                        {isExpanded && (
+                                            <div className="bg-blue-50/50 rounded-lg p-4 space-y-3">
+                                                {doc.quickStart.map((step) => (
+                                                    <div key={step.step} className="flex gap-3">
+                                                        <div className="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                                            {step.step}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium">{step.title}</p>
+                                                            <p className="text-xs text-muted-foreground">{step.description}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2">
+                                            <Link to={`/dashboard/docs/${module.id}`} className="flex-1">
+                                                <Button variant="outline" className="w-full" size="sm">
+                                                    <BookOpen className="w-4 h-4 mr-2" />
+                                                    Documentation complète
+                                                </Button>
+                                            </Link>
+                                            {doc.configPath && (
+                                                <Link to={doc.configPath} className="flex-1">
+                                                    <Button className="w-full" size="sm">
+                                                        <Plug className="w-4 h-4 mr-2" />
+                                                        Configurer
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {!module.active && (
                                 <div className="pt-4 border-t">

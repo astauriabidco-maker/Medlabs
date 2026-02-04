@@ -311,4 +311,120 @@ export class ResultsService {
         // TODO: Delete file from S3
         return { message: 'Document deleted successfully' };
     }
+
+    // ===== PATIENT_HISTORY MODULE =====
+
+    /**
+     * Get complete patient history with all results grouped by year
+     */
+    async getPatientHistory(tenantId: string, patientId: string, years: number = 5) {
+        const cutoffDate = new Date();
+        cutoffDate.setFullYear(cutoffDate.getFullYear() - years);
+
+        // Find by patient phone or ID pattern
+        const documents = await this.prisma.document.findMany({
+            where: {
+                tenantId,
+                OR: [
+                    { patientPhone: patientId },
+                    { folderRef: { contains: patientId, mode: 'insensitive' } },
+                ],
+                createdAt: { gte: cutoffDate },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                folderRef: true,
+                createdAt: true,
+                patientFirstName: true,
+                patientLastName: true,
+                status: true,
+                isCritical: true,
+                prescriberName: true,
+                sampleDate: true,
+            },
+        });
+
+        // Group by year
+        const byYear: Record<number, typeof documents> = {};
+        documents.forEach(doc => {
+            const year = doc.createdAt.getFullYear();
+            if (!byYear[year]) byYear[year] = [];
+            byYear[year].push(doc);
+        });
+
+        return {
+            patientId,
+            totalResults: documents.length,
+            yearsSpan: years,
+            history: Object.entries(byYear)
+                .map(([year, docs]) => ({
+                    year: parseInt(year),
+                    count: docs.length,
+                    results: docs,
+                }))
+                .sort((a, b) => b.year - a.year),
+        };
+    }
+
+    // ===== RESULT_COMPARISON MODULE =====
+
+    /**
+     * Compare multiple results to show trends and variations
+     */
+    async compareResults(tenantId: string, resultIds: string[]) {
+        if (!resultIds || resultIds.length < 2) {
+            throw new BadRequestException('At least 2 results are required for comparison');
+        }
+        if (resultIds.length > 10) {
+            throw new BadRequestException('Maximum 10 results can be compared at once');
+        }
+
+        const documents = await this.prisma.document.findMany({
+            where: {
+                id: { in: resultIds },
+                tenantId,
+            },
+            orderBy: { createdAt: 'asc' },
+            select: {
+                id: true,
+                folderRef: true,
+                createdAt: true,
+                patientFirstName: true,
+                patientLastName: true,
+                status: true,
+                isCritical: true,
+                prescriberName: true,
+                sampleDate: true,
+            },
+        });
+
+        if (documents.length < 2) {
+            throw new NotFoundException('Not enough documents found for comparison');
+        }
+
+        // Calculate time span
+        const firstDate = documents[0].createdAt;
+        const lastDate = documents[documents.length - 1].createdAt;
+        const daysDiff = Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Count critical results
+        const criticalCount = documents.filter(d => d.isCritical).length;
+
+        return {
+            comparison: {
+                totalResults: documents.length,
+                firstResultDate: firstDate,
+                lastResultDate: lastDate,
+                periodDays: daysDiff,
+                criticalResults: criticalCount,
+                criticalTrend: criticalCount > 1 ? 'warning' : criticalCount === 0 ? 'good' : 'stable',
+            },
+            results: documents.map((doc, index) => ({
+                ...doc,
+                patientName: `${doc.patientFirstName} ${doc.patientLastName}`.trim(),
+                position: index + 1,
+            })),
+        };
+    }
 }

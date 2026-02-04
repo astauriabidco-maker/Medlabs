@@ -183,14 +183,45 @@ export class StatsService {
     }
 
     /**
-     * Check if stats are enabled for tenant
+     * Check if stats/analytics feature is enabled for tenant
+     * Uses the unified licensing system (plan features + license codes)
      */
     async isStatsEnabled(tenantId: string): Promise<boolean> {
         const tenant = await this.prisma.tenant.findUnique({
             where: { id: tenantId },
-            select: { statsEnabled: true },
+            select: {
+                features: true,
+                subscription: { select: { plan: true, status: true } }
+            },
         });
-        return tenant?.statsEnabled || false;
+
+        if (!tenant) return false;
+
+        // Check if ANALYTICS_BI is in plan features (PREMIUM or ENTERPRISE)
+        const plan = tenant.subscription?.plan || 'STARTER';
+        const planFeatures = this.getPlanFeatures(plan);
+
+        // Check if ANALYTICS_BI is in additional licensed features
+        const licensedFeatures = tenant.features || [];
+
+        // Module is enabled if ANALYTICS_BI is in plan or in additional licensed features
+        return planFeatures.includes('ANALYTICS_BI') || licensedFeatures.includes('ANALYTICS_BI');
+    }
+
+    /**
+     * Get features included in a plan
+     */
+    private getPlanFeatures(plan: string): string[] {
+        const PLAN_FEATURES: Record<string, string[]> = {
+            STARTER: [],
+            PREMIUM: ['AUTO_SYNC', 'LONG_TERM_ARCHIVE', 'ANALYTICS_BI', 'API_ADVANCED', 'PRIORITY_SUPPORT'],
+            ENTERPRISE: [
+                'AUTO_SYNC', 'ARCHIVE_5Y', 'ARCHIVE_10Y', 'ANALYTICS_BI', 'PATIENT_PORTAL',
+                'APPOINTMENTS', 'CRITICAL_ALERTS', 'WHATSAPP_BUSINESS', 'MOBILE_MONEY',
+                'API_ADVANCED', 'UNLIMITED_TEAM', 'PRIORITY_SUPPORT'
+            ],
+        };
+        return PLAN_FEATURES[plan] || [];
     }
 
     /**

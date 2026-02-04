@@ -12,13 +12,37 @@ import {
     HttpStatus,
 } from '@nestjs/common';
 import { TeamService } from './team.service';
+import { RoleLimitsService, ROLE_METADATA } from './role-limits.service';
 import { JwtAuthGuard } from '../auth/guards';
 import { RequirePermissions, PermissionsGuard } from '../auth/permissions.guard';
 
 @Controller('team')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TeamController {
-    constructor(private teamService: TeamService) { }
+    constructor(
+        private teamService: TeamService,
+        private roleLimitsService: RoleLimitsService,
+    ) { }
+
+    // ==================== ROLE QUOTAS ====================
+
+    @Get('quotas')
+    @RequirePermissions('MANAGE_TEAM')
+    async getRoleQuotas(@Req() req: any) {
+        return this.roleLimitsService.getTenantRoleQuotas(req.user.tenantId);
+    }
+
+    @Get('available-roles')
+    @RequirePermissions('MANAGE_TEAM')
+    async getAvailableRoles(@Req() req: any) {
+        return this.roleLimitsService.getAvailableRoles(req.user.tenantId);
+    }
+
+    @Get('role-metadata')
+    @RequirePermissions('MANAGE_TEAM')
+    getRoleMetadata() {
+        return ROLE_METADATA;
+    }
 
     // ==================== ROLES ====================
 
@@ -72,8 +96,19 @@ export class TeamController {
             firstName?: string;
             lastName?: string;
             customRoleId: string;
+            role?: string; // New: UserRole enum value
         },
     ) {
+        // Validate role quota before creating user
+        if (body.role) {
+            const check = await this.roleLimitsService.canCreateUserWithRole(
+                req.user.tenantId,
+                body.role
+            );
+            if (!check.allowed) {
+                throw new Error(check.reason);
+            }
+        }
         return this.teamService.createUser(req.user.tenantId, body);
     }
 

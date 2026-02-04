@@ -1,7 +1,13 @@
 import * as React from 'react';
 import { api } from '@/lib/api';
 
-export type UserRole = 'SUPER_ADMIN' | 'LAB_ADMIN' | 'TECHNICIAN';
+// Platform roles (no tenant) + Tenant roles
+export type UserRole =
+    | 'SUPER_ADMIN' | 'PLATFORM_MANAGER' | 'PLATFORM_SUPPORT' | 'PLATFORM_SALES' | 'PLATFORM_ACCOUNTANT'
+    | 'LAB_ADMIN' | 'BUSINESS_MANAGER' | 'MANAGER' | 'TECHNICIAN' | 'RECEPTIONIST';
+
+export const PLATFORM_ROLES: UserRole[] = ['SUPER_ADMIN', 'PLATFORM_MANAGER', 'PLATFORM_SUPPORT', 'PLATFORM_SALES', 'PLATFORM_ACCOUNTANT'];
+export const TENANT_ROLES: UserRole[] = ['LAB_ADMIN', 'BUSINESS_MANAGER', 'MANAGER', 'TECHNICIAN', 'RECEPTIONIST'];
 
 interface User {
     id: string;
@@ -25,7 +31,7 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 // Mock users for development
-const MOCK_USERS: Record<UserRole, User> = {
+const MOCK_USERS: Partial<Record<UserRole, User>> = {
     SUPER_ADMIN: {
         id: 'super-admin-001',
         email: 'admin@medlab.com',

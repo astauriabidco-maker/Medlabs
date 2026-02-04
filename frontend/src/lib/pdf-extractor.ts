@@ -396,19 +396,35 @@ function detectPatientName(text: string): { firstName?: string; lastName?: strin
         return result;
     }
 
-    // Pattern 2: Just look for any name near Code Patient (within 50 chars before)
+    // Pattern 2: Just look for any name near Code Patient (within 80 chars before)
+    // BUT exclude names that are preceded by staff role keywords
     const codePatientIdx = text.search(/Code\s*Patient/i);
     if (codePatientIdx > 0) {
-        const textBefore = text.substring(Math.max(0, codePatientIdx - 80), codePatientIdx);
+        const textBefore = text.substring(Math.max(0, codePatientIdx - 150), codePatientIdx);
         console.log('[PDF Extractor] Text before Code Patient:', JSON.stringify(textBefore));
 
-        // Try to find title + name pattern in this chunk
-        const nameMatch = textBefore.match(/(?:Mr\.?|Mme\.?|Mlle\.?|M\.)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿa-zà-ÿ]+)/i);
-        if (nameMatch) {
-            console.log('[PDF Extractor] Pattern 2 matched:', nameMatch[0]);
-            result.lastName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
-            result.firstName = nameMatch[2].charAt(0).toUpperCase() + nameMatch[2].slice(1).toLowerCase();
-            return result;
+        // Find ALL title + name patterns in this chunk
+        const namePattern = /(?:Mr\.?|Mme\.?|Mlle\.?|M\.)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿa-zà-ÿ]+)/gi;
+        const allMatches = [...textBefore.matchAll(namePattern)];
+
+        // Filter out names that are preceded by staff keywords (Major:, Vice:, Chef:, etc.)
+        const staffLabels = /(?:major|vice|chef|biologiste|directeur|responsable|technicien)\s*[:\-]/i;
+
+        for (const nameMatch of allMatches) {
+            if (nameMatch.index !== undefined) {
+                // Check the 50 chars BEFORE this specific match for staff labels
+                const contextBefore = textBefore.substring(Math.max(0, nameMatch.index - 50), nameMatch.index);
+                const isStaffName = staffLabels.test(contextBefore);
+
+                console.log('[PDF Extractor] Pattern 2 candidate:', nameMatch[0], '| Context:', JSON.stringify(contextBefore), '| IsStaff:', isStaffName);
+
+                if (!isStaffName) {
+                    result.lastName = nameMatch[1].charAt(0).toUpperCase() + nameMatch[1].slice(1).toLowerCase();
+                    result.firstName = nameMatch[2].charAt(0).toUpperCase() + nameMatch[2].slice(1).toLowerCase();
+                    console.log('[PDF Extractor] Pattern 2 accepted:', result);
+                    return result;
+                }
+            }
         }
     }
 
@@ -464,19 +480,27 @@ function detectPatientName(text: string): { firstName?: string; lastName?: strin
     // =========================================================================
     // PRIORITY 4: Title + Name NOT preceded by staff role
     // NOTE: Added \b word boundary to prevent matching "M" from email endings like ".cm"
+    // ENHANCED: Uses direct staff label regex for strict filtering
     // =========================================================================
     const titleNamePattern = /(?:^|\s)(?:Mlle|Mme|M\.|Mr\.?|Mrs\.?)\s+([A-ZÀ-Ÿ][A-ZÀ-Ÿa-zà-ÿ]+)\s+([A-ZÀ-Ÿ][a-zà-ÿ]+)/gi;
-    const allMatches = [...text.matchAll(titleNamePattern)];
+    const allTitleMatches = [...text.matchAll(titleNamePattern)];
 
-    for (const match of allMatches) {
+    // Strict staff label pattern - matches "Major :", "Vice major :", "Chef :", etc.
+    const staffLabelPattern = /(?:major|vice\s*major|chef|biologiste|directeur|responsable|technicien|laborantin|secrétaire|infirmier|pharmacien)\s*[:\-]/i;
+
+    for (const match of allTitleMatches) {
         if (match.index === undefined) continue;
 
         const contextBefore = text.substring(Math.max(0, match.index - 80), match.index);
         const isStaffRole = STAFF_ROLE_PATTERNS.some(pattern => pattern.test(contextBefore));
+        const isStaffLabel = staffLabelPattern.test(contextBefore);
 
-        if (!isStaffRole) {
+        console.log('[PDF Extractor] Pattern 4 candidate:', match[0], '| IsStaffRole:', isStaffRole, '| IsStaffLabel:', isStaffLabel);
+
+        if (!isStaffRole && !isStaffLabel) {
             result.lastName = match[1].charAt(0).toUpperCase() + match[1].slice(1).toLowerCase();
             result.firstName = match[2].charAt(0).toUpperCase() + match[2].slice(1).toLowerCase();
+            console.log('[PDF Extractor] Pattern 4 accepted:', result);
             return result;
         }
     }
@@ -602,36 +626,58 @@ function detectCivility(text: string): 'M' | 'Mme' | 'Mlle' | undefined {
  * Handles both accented and non-accented text (PDF text extraction may lose accents)
  */
 function detectSampleDate(text: string): string | undefined {
+    // Pre-normalize: collapse spaced-out letters from OCR (e.g., "E d i t i o n" -> "Edition")
+    // This handles when PDF text extraction adds spaces between each character
+    let precleanedText = text;
+
+    // Check if text has excessive spaces (indication of spaced-out OCR)
+    // Pattern: single letters separated by spaces, e.g., "E d i t i o n"
+    const spacedWordPattern = /\b([A-Za-z])(?:\s+[A-Za-z]){3,}\b/;
+    if (spacedWordPattern.test(text)) {
+        console.log('[PDF Extractor] Detected spaced-out OCR, normalizing...');
+        // Collapse single-letter sequences separated by spaces
+        precleanedText = text.replace(/\b([A-Za-z])\s+(?=[A-Za-z]\s*)/g, '$1');
+    }
+
     // Normalize text to handle accent variations (prélèvement vs PRELEVEMENT)
-    const normalizedText = text
+    const normalizedText = precleanedText
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
         .toLowerCase();
 
     const patterns = [
         // "PRELEVEMENT DU : DD-MM-YYYY" or "PRELEVEMENT DU: DD/MM/YYYY" (exact Cameroon format)
-        /prelevement\s+du\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /prelevement\s+du\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
         // "DATE DE PRELEVEMENT: DD/MM/YYYY" (handles PRELEVEMENT without accents)
-        /date\s+de\s+prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /date\s+de\s+prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
         // "DATE PRELEVEMENT: DD/MM/YYYY"
-        /date\s+prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /date\s+prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
         // "PRELEVE LE DD/MM/YYYY" or "PRELEVEMENT LE DD/MM/YYYY"
-        /prelev(?:e|ement)\s*(?:le|du)?\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /prelev(?:e|ement)\s*(?:le|du)?\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
         // "PRELEVEMENT: DD/MM/YYYY"
-        /prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /prelevement\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
         // "RECUEILLI LE DD/MM/YYYY"
-        /recueilli\s+le\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /recueilli\s+le\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
         // "DATE PREL." or "DATE PREL:" abbreviated
-        /date\s+prel\.?\s*[:\-]?\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /date\s+prel\.?\s*[:\-]?\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
+        // "EDITION : DD − MM − YYYY" (Cameroon format - report date as fallback for sample date)
+        // Note: Uses Unicode minus sign (−) which PDF extractors often produce
+        /edition\s*[:\-]?\s*(\d{1,2}[/\-.\s−]+\d{1,2}[/\-.\s−]+\d{2,4})/i,
         // Generic "DATE: DD/MM/YYYY" (lower priority)
-        /date\s*[:\-]\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+        /date\s*[:\-]\s*(\d{1,2}[/\-.\s−]\d{1,2}[/\-.\s−]\d{2,4})/i,
     ];
 
     for (const pattern of patterns) {
         const match = normalizedText.match(pattern);
         if (match && match[1]) {
-            // Parse the date
-            const dateStr = match[1].replace(/\s/g, '').replace(/[\-.]/g, '/');
+            console.log('[PDF Extractor] Date pattern matched:', pattern.toString(), '| Raw:', match[1]);
+            // Parse the date - also handle Unicode minus sign (−, U+2212)
+            const dateStr = match[1]
+                .replace(/\s/g, '')
+                .replace(/[−–—]/g, '-')  // Replace various dash characters
+                .replace(/[\-.]/g, '/');
+
+            console.log('[PDF Extractor] Date normalized:', dateStr);
             const parts = dateStr.split('/');
             if (parts.length === 3) {
                 let day = parseInt(parts[0], 10);
@@ -646,7 +692,9 @@ function detectSampleDate(text: string): string | undefined {
                 // Validate date
                 if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 1900 && year <= 2100) {
                     // Return ISO format (YYYY-MM-DD)
-                    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const result = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    console.log('[PDF Extractor] Date extracted:', result);
+                    return result;
                 }
             }
         }
