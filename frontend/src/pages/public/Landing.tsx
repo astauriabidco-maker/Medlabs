@@ -24,6 +24,16 @@ import {
     ChevronRight,
     Play,
     Building2,
+    Smartphone,
+    FileSearch,
+    History,
+    GitCompare,
+    PenTool,
+    Wifi,
+    CreditCard,
+    Settings,
+    ClipboardList,
+    MonitorSmartphone,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -32,17 +42,17 @@ import { useTranslation } from 'react-i18next';
 // ============================================
 const fadeInUp = {
     hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const } }
 };
 
 const fadeInLeft = {
     hidden: { opacity: 0, x: -40 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const } }
 };
 
 const fadeInRight = {
     hidden: { opacity: 0, x: 40 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const } }
 };
 
 const staggerContainer = {
@@ -55,7 +65,7 @@ const staggerContainer = {
 
 const scaleIn = {
     hidden: { opacity: 0, scale: 0.8 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut' } }
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] as const } }
 };
 
 // ============================================
@@ -170,46 +180,121 @@ export function Landing() {
     ];
 
     const features = [
+        // Core Results Pipeline
+        {
+            icon: <FileSearch className="w-8 h-8" />,
+            title: 'OCR Intelligent (IDP)',
+            desc: 'Extraction automatique des données PDF : patient, référence, date. Configuration adaptable à chaque LIS.',
+            color: 'from-cyan-500 to-teal-600',
+            size: 'lg',
+        },
         {
             icon: <MessageCircle className="w-8 h-8" />,
             title: 'WhatsApp Business',
-            desc: 'Envoi sécurisé des résultats via WhatsApp avec lien unique crypté.',
+            desc: 'Envoi sécurisé des résultats via WhatsApp avec lien unique crypté et OTP.',
             color: 'from-green-500 to-emerald-600',
             size: 'md',
         },
         {
-            icon: <Calendar className="w-8 h-8" />,
-            title: 'Prise de RDV en ligne',
-            desc: 'Patients réservent directement leurs créneaux. Prélèvement à domicile disponible.',
+            icon: <Smartphone className="w-8 h-8" />,
+            title: 'SMS Multi-Provider',
+            desc: 'Orange CM, CamPay, MSG91. Failover automatique pour une délivrabilité maximale.',
+            color: 'from-orange-500 to-amber-600',
+            size: 'md',
+        },
+        // Patient Engagement
+        {
+            icon: <Users className="w-8 h-8" />,
+            title: 'Portail Patient',
+            desc: 'Interface web sécurisée avec authentification OTP. Téléchargement des résultats et historique.',
             color: 'from-blue-500 to-indigo-600',
-            size: 'lg',
+            size: 'xl',
         },
         {
-            icon: <BarChart3 className="w-8 h-8" />,
-            title: 'Business Intelligence',
-            desc: 'Tableaux de bord analytiques pour optimiser votre activité.',
-            color: 'from-purple-500 to-violet-600',
+            icon: <Calendar className="w-8 h-8" />,
+            title: 'Prise de RDV en ligne',
+            desc: 'Réservation directe des créneaux. Prélèvement à domicile ou en laboratoire.',
+            color: 'from-violet-500 to-purple-600',
             size: 'md',
         },
         {
-            icon: <Users className="w-8 h-8" />,
-            title: 'Gestion d\'équipe',
-            desc: 'Rôles personnalisés et permissions granulaires pour chaque membre.',
-            color: 'from-amber-500 to-orange-600',
-            size: 'sm',
+            icon: <History className="w-8 h-8" />,
+            title: 'Historique Médical',
+            desc: 'Analyse longitudinale des antécédents par patient. Suivi des tendances cliniques.',
+            color: 'from-rose-500 to-pink-600',
+            size: 'md',
+        },
+        // BI & Analytics
+        {
+            icon: <BarChart3 className="w-8 h-8" />,
+            title: 'Business Intelligence',
+            desc: 'Tableaux de bord analytiques : volume, pics d\'activité, top prescripteurs, KPIs financiers.',
+            color: 'from-purple-500 to-violet-600',
+            size: 'lg',
         },
         {
+            icon: <Wifi className="w-8 h-8" />,
+            title: 'Dashboard Temps Réel',
+            desc: 'Push WebSockets pour les alertes critiques. Monitoring opérationnel instantané.',
+            color: 'from-red-500 to-rose-600',
+            size: 'md',
+        },
+        {
+            icon: <GitCompare className="w-8 h-8" />,
+            title: 'Comparaison Résultats',
+            desc: 'Module de comparaison clinique jusqu\'à 10 examens. Suivi des tendances visuelles.',
+            color: 'from-emerald-500 to-green-600',
+            size: 'md',
+        },
+        // Automation & Workflows
+        {
+            icon: <Settings className="w-8 h-8" />,
+            title: 'Workflow Engine',
+            desc: 'Moteur de règles conditionnelles. Ex: Si Urgence + BI → Alerter Biologiste automatiquement.',
+            color: 'from-slate-600 to-gray-700',
+            size: 'md',
+        },
+        {
+            icon: <PenTool className="w-8 h-8" />,
+            title: 'Signatures Électroniques',
+            desc: 'Verrouillage cryptographique HMAC-SHA256 pour la validité HDS des documents.',
+            color: 'from-indigo-500 to-blue-600',
+            size: 'md',
+        },
+        {
+            icon: <Bell className="w-8 h-8" />,
+            title: 'Alertes Critiques',
+            desc: 'Notification immédiate des valeurs anormales au biologiste. Configurable par seuil.',
+            color: 'from-red-600 to-rose-700',
+            size: 'md',
+        },
+        // SaaS & Governance
+        {
             icon: <Package className="w-8 h-8" />,
-            title: 'Marketplace de modules',
-            desc: 'Activez uniquement les fonctionnalités dont vous avez besoin.',
+            title: 'Marketplace Modules',
+            desc: 'Activez uniquement les fonctionnalités dont vous avez besoin. Facturation à l\'usage.',
             color: 'from-pink-500 to-rose-600',
             size: 'xl',
         },
         {
-            icon: <Bell className="w-8 h-8" />,
-            title: 'Alertes critiques',
-            desc: 'Notification immédiate des valeurs anormales au biologiste.',
-            color: 'from-red-500 to-rose-600',
+            icon: <CreditCard className="w-8 h-8" />,
+            title: 'Paiement Mobile Money',
+            desc: 'Intégration Orange Money, MTN MoMo, CamPay. Facturation automatique.',
+            color: 'from-amber-500 to-yellow-600',
+            size: 'md',
+        },
+        {
+            icon: <MonitorSmartphone className="w-8 h-8" />,
+            title: 'Sync Agent Windows',
+            desc: 'Pont Desktop pour l\'ingestion automatique depuis les automates de laboratoire.',
+            color: 'from-sky-500 to-cyan-600',
+            size: 'md',
+        },
+        {
+            icon: <ClipboardList className="w-8 h-8" />,
+            title: 'Audit Trail Complet',
+            desc: 'Traçabilité de 27 actions conforme HDS. Export pour inspection réglementaire.',
+            color: 'from-teal-500 to-emerald-600',
             size: 'md',
         },
     ];
@@ -593,8 +678,8 @@ export function Landing() {
                                 variants={scaleIn}
                                 whileHover={{ scale: 1.05, y: -10 }}
                                 className={`relative rounded-3xl p-8 transition-all duration-300 ${plan.popular
-                                        ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-2xl shadow-blue-500/30'
-                                        : 'bg-white border-2 border-slate-200 hover:border-primary/30'
+                                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-2xl shadow-blue-500/30'
+                                    : 'bg-white border-2 border-slate-200 hover:border-primary/30'
                                     }`}
                             >
                                 {plan.popular && (
@@ -621,8 +706,8 @@ export function Landing() {
                                 <Link
                                     to="/become-partner"
                                     className={`block text-center py-3 rounded-xl font-semibold transition-all ${plan.popular
-                                            ? 'bg-white text-blue-600 hover:bg-blue-50'
-                                            : 'bg-slate-900 text-white hover:bg-slate-800'
+                                        ? 'bg-white text-blue-600 hover:bg-blue-50'
+                                        : 'bg-slate-900 text-white hover:bg-slate-800'
                                         }`}
                                 >
                                     Commencer
