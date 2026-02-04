@@ -53,6 +53,11 @@ const Booking = lazy(() => import('./pages/public/Booking.tsx'));
 const Pricing = lazy(() => import('./pages/public/Pricing.tsx'));
 const ExpiredDocument = lazy(() => import('./pages/public/ExpiredDocument.tsx').then(m => ({ default: m.ExpiredDocument })));
 
+// Legal Pages
+const LegalMentions = lazy(() => import('./pages/public/LegalMentions.tsx').then(m => ({ default: m.LegalMentions })));
+const PrivacyPolicy = lazy(() => import('./pages/public/PrivacyPolicy.tsx').then(m => ({ default: m.PrivacyPolicy })));
+const TermsOfService = lazy(() => import('./pages/public/TermsOfService.tsx').then(m => ({ default: m.TermsOfService })));
+
 // ========================================
 // LAZY LOADED - Auth Pages
 // ========================================
@@ -216,6 +221,11 @@ createRoot(document.getElementById('root')!).render(
 
                 {/* Public Booking Widget */}
                 <Route path="/book/:slug" element={<Booking />} />
+
+                {/* Legal Pages */}
+                <Route path="/legal/mentions" element={<LegalMentions />} />
+                <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+                <Route path="/legal/terms" element={<TermsOfService />} />
               </Routes>
             </Suspense>
           </BrowserRouter>

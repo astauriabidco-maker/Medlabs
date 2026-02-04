@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
+import { useRef, useState, useEffect } from 'react';
 import {
     ShieldCheck,
     Activity,
     Lock,
-    Phone,
     MessageCircle,
     Calendar,
     BarChart3,
@@ -19,11 +20,124 @@ import {
     Zap,
     Award,
     Globe,
+    ChevronLeft,
+    ChevronRight,
+    Play,
+    Building2,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+// ============================================
+// Animation Variants
+// ============================================
+const fadeInUp = {
+    hidden: { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+};
+
+const fadeInLeft = {
+    hidden: { opacity: 0, x: -40 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+};
+
+const fadeInRight = {
+    hidden: { opacity: 0, x: 40 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.6, ease: 'easeOut' } }
+};
+
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: { staggerChildren: 0.15 }
+    }
+};
+
+const scaleIn = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: 'easeOut' } }
+};
+
+// ============================================
+// Animated Section Wrapper
+// ============================================
+function AnimatedSection({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
+    const ref = useRef(null);
+    const isInView = useInView(ref, { once: true, margin: '-100px' });
+
+    return (
+        <motion.div
+            ref={ref}
+            initial="hidden"
+            animate={isInView ? 'visible' : 'hidden'}
+            variants={fadeInUp}
+            transition={{ delay }}
+            className={className}
+        >
+            {children}
+        </motion.div>
+    );
+}
+
+// ============================================
+// Testimonials Data
+// ============================================
+const testimonials = [
+    {
+        quote: "MedLab Secure a transformé notre façon de communiquer avec les patients. La sécurité des données était notre priorité, et ils l'ont parfaitement compris.",
+        author: "Dr. Marie Nkoulou",
+        role: "Directrice, Laboratoire Mvolyé",
+        initials: "MN",
+        color: "from-blue-500 to-indigo-600"
+    },
+    {
+        quote: "Depuis que nous utilisons MedLab, nos patients reçoivent leurs résultats en moins de 30 secondes. Le gain de temps est énorme pour notre équipe.",
+        author: "Dr. Paul Ekambi",
+        role: "Biologiste, Centre Médical Central",
+        initials: "PE",
+        color: "from-emerald-500 to-teal-600"
+    },
+    {
+        quote: "L'intégration avec notre LIS existant s'est faite en quelques heures. Le support technique est exceptionnel.",
+        author: "Jean-Claude Mbarga",
+        role: "Responsable IT, Clinique du Lac",
+        initials: "JM",
+        color: "from-purple-500 to-violet-600"
+    },
+    {
+        quote: "La conformité HDS nous a permis de rassurer nos patients sur la protection de leurs données. C'est un argument commercial majeur.",
+        author: "Dr. Aminata Diallo",
+        role: "Directrice Adjointe, LaboPharma",
+        initials: "AD",
+        color: "from-amber-500 to-orange-600"
+    },
+];
+
+// ============================================
+// Client Logos (placeholders with names)
+// ============================================
+const clientLogos = [
+    { name: "Laboratoire Mvolyé", city: "Yaoundé" },
+    { name: "Centre Médical Central", city: "Douala" },
+    { name: "Clinique du Lac", city: "Yaoundé" },
+    { name: "LaboPharma", city: "Bafoussam" },
+    { name: "Polyclinique Bastos", city: "Yaoundé" },
+    { name: "Centre Pasteur", city: "Garoua" },
+    { name: "Hôpital Laquintinie", city: "Douala" },
+    { name: "Laboratoire National", city: "Yaoundé" },
+];
+
 export function Landing() {
     const { t } = useTranslation();
+    const [currentTestimonial, setCurrentTestimonial] = useState(0);
+
+    // Auto-rotate testimonials
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+        }, 6000);
+        return () => clearInterval(timer);
+    }, []);
 
     const stats = [
         { value: '50,000+', label: 'Résultats envoyés' },
@@ -125,7 +239,12 @@ export function Landing() {
     return (
         <div className="min-h-screen bg-white font-sans text-slate-900 overflow-x-hidden">
             {/* Header */}
-            <header className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+            <motion.header
+                className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50"
+                initial={{ y: -100 }}
+                animate={{ y: 0 }}
+                transition={{ duration: 0.5 }}
+            >
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-primary font-bold text-xl">
                         <Activity className="w-6 h-6" />
@@ -134,6 +253,7 @@ export function Landing() {
                     <nav className="hidden md:flex items-center gap-6 text-sm">
                         <a href="#security" className="text-slate-600 hover:text-primary transition-colors">Sécurité</a>
                         <a href="#features" className="text-slate-600 hover:text-primary transition-colors">Fonctionnalités</a>
+                        <a href="#testimonials" className="text-slate-600 hover:text-primary transition-colors">Témoignages</a>
                         <a href="#pricing" className="text-slate-600 hover:text-primary transition-colors">Tarifs</a>
                         <Link to="/become-partner" className="text-slate-600 hover:text-primary transition-colors">Devenir Partenaire</Link>
                     </nav>
@@ -146,7 +266,7 @@ export function Landing() {
                         </Link>
                     </div>
                 </div>
-            </header>
+            </motion.header>
 
             {/* Hero Section */}
             <section className="relative py-24 md:py-32 overflow-hidden">
@@ -155,13 +275,26 @@ export function Landing() {
                 <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-blue-100/50 to-transparent" />
 
                 {/* Animated Circles */}
-                <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                <motion.div
+                    className="absolute top-20 left-10 w-72 h-72 bg-blue-200/30 rounded-full blur-3xl"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                />
+                <motion.div
+                    className="absolute bottom-20 right-10 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl"
+                    animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.5, 0.3] }}
+                    transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+                />
 
                 <div className="container mx-auto px-4 relative z-10">
                     <div className="max-w-4xl mx-auto text-center space-y-8">
                         {/* Trust Badges */}
-                        <div className="flex items-center justify-center gap-4 flex-wrap">
+                        <motion.div
+                            className="flex items-center justify-center gap-4 flex-wrap"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                        >
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-medium border border-green-200">
                                 <ShieldCheck className="w-4 h-4" />
                                 <span>Certifié HDS</span>
@@ -174,24 +307,39 @@ export function Landing() {
                                 <Award className="w-4 h-4" />
                                 <span>Chiffrement AES-256</span>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Headline */}
-                        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight">
+                        <motion.h1
+                            className="text-5xl md:text-7xl font-extrabold tracking-tight"
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                        >
                             <span className="text-slate-900">Résultats Médicaux.</span>
                             <br />
                             <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
                                 Sécurité Absolue.
                             </span>
-                        </h1>
+                        </motion.h1>
 
-                        <p className="text-xl md:text-2xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                        <motion.p
+                            className="text-xl md:text-2xl text-slate-600 max-w-2xl mx-auto leading-relaxed"
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                        >
                             Transmettez les résultats d'analyses à vos patients par <strong>WhatsApp</strong> ou <strong>SMS</strong>,
                             avec un niveau de sécurité certifié <strong>Hébergeur de Données de Santé</strong>.
-                        </p>
+                        </motion.p>
 
                         {/* CTAs */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                        <motion.div
+                            className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4"
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                        >
                             <Link
                                 to="/become-partner"
                                 className="inline-flex h-14 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 text-lg font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl hover:shadow-blue-500/40 hover:scale-105"
@@ -199,14 +347,13 @@ export function Landing() {
                                 <Zap className="w-5 h-5 mr-2" />
                                 Demander une démo
                             </Link>
-                            <Link
-                                to="/pricing"
-                                className="inline-flex h-14 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-8 text-lg font-semibold text-slate-700 transition-all hover:border-primary hover:text-primary"
+                            <button
+                                className="inline-flex h-14 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-8 text-lg font-semibold text-slate-700 transition-all hover:border-primary hover:text-primary group"
                             >
-                                Voir les tarifs
-                                <ArrowRight className="w-5 h-5 ml-2" />
-                            </Link>
-                        </div>
+                                <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                                Voir la vidéo
+                            </button>
+                        </motion.div>
                     </div>
                 </div>
             </section>
@@ -214,21 +361,62 @@ export function Landing() {
             {/* Stats Bar */}
             <section className="py-12 bg-slate-900 text-white">
                 <div className="container mx-auto px-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                    <motion.div
+                        className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
+                        variants={staggerContainer}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                    >
                         {stats.map((stat, i) => (
-                            <div key={i} className="space-y-1">
+                            <motion.div key={i} className="space-y-1" variants={scaleIn}>
                                 <p className="text-3xl md:text-4xl font-bold text-white">{stat.value}</p>
                                 <p className="text-slate-400 text-sm">{stat.label}</p>
-                            </div>
+                            </motion.div>
                         ))}
+                    </motion.div>
+                </div>
+            </section>
+
+            {/* Clients Trust Section */}
+            <section className="py-16 bg-slate-50 border-b">
+                <div className="container mx-auto px-4">
+                    <AnimatedSection className="text-center mb-10">
+                        <p className="text-slate-500 font-medium mb-6">ILS NOUS FONT CONFIANCE</p>
+                    </AnimatedSection>
+
+                    <div className="overflow-hidden">
+                        <motion.div
+                            className="flex gap-8 items-center justify-center flex-wrap"
+                            variants={staggerContainer}
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                        >
+                            {clientLogos.map((client, i) => (
+                                <motion.div
+                                    key={i}
+                                    variants={scaleIn}
+                                    className="flex items-center gap-3 px-6 py-4 bg-white rounded-xl border border-slate-200 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+                                >
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                                        <Building2 className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-semibold text-slate-800">{client.name}</p>
+                                        <p className="text-sm text-slate-500">{client.city}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </motion.div>
                     </div>
                 </div>
             </section>
 
             {/* Security Showcase */}
-            <section id="security" className="py-24 bg-gradient-to-b from-slate-50 to-white">
+            <section id="security" className="py-24 bg-gradient-to-b from-white to-slate-50">
                 <div className="container mx-auto px-4">
-                    <div className="text-center max-w-3xl mx-auto mb-16">
+                    <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-100 text-green-700 text-sm font-medium mb-6">
                             <Shield className="w-4 h-4" />
                             Sécurité de niveau bancaire
@@ -240,12 +428,19 @@ export function Landing() {
                         <p className="text-xl text-slate-600">
                             Architecture conçue pour la protection maximale des données de santé sensibles.
                         </p>
-                    </div>
+                    </AnimatedSection>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <motion.div
+                        className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
+                        variants={staggerContainer}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                    >
                         {securityFeatures.map((feature, i) => (
-                            <div
+                            <motion.div
                                 key={i}
+                                variants={fadeInUp}
                                 className="group relative bg-white rounded-2xl p-8 border border-slate-200 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300"
                             >
                                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
@@ -253,29 +448,37 @@ export function Landing() {
                                 </div>
                                 <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
                                 <p className="text-slate-600 leading-relaxed">{feature.desc}</p>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
             {/* Features Bento Grid */}
             <section id="features" className="py-24">
                 <div className="container mx-auto px-4">
-                    <div className="text-center max-w-3xl mx-auto mb-16">
+                    <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="text-4xl md:text-5xl font-bold mb-6">
                             Tout ce dont votre labo a besoin
                         </h2>
                         <p className="text-xl text-slate-600">
                             Une plateforme complète avec des modules activables à la carte.
                         </p>
-                    </div>
+                    </AnimatedSection>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                    <motion.div
+                        className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
+                        variants={staggerContainer}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                    >
                         {features.map((feature, i) => (
-                            <div
+                            <motion.div
                                 key={i}
-                                className={`group relative rounded-3xl p-8 text-white overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${feature.size === 'xl' ? 'md:col-span-2' : feature.size === 'lg' ? 'md:row-span-2' : ''
+                                variants={scaleIn}
+                                whileHover={{ scale: 1.03, y: -5 }}
+                                className={`group relative rounded-3xl p-8 text-white overflow-hidden transition-all duration-300 hover:shadow-2xl ${feature.size === 'xl' ? 'md:col-span-2' : feature.size === 'lg' ? 'md:row-span-2' : ''
                                     }`}
                             >
                                 {/* Gradient Background */}
@@ -290,32 +493,75 @@ export function Landing() {
                                     <h3 className="text-2xl font-bold mb-3">{feature.title}</h3>
                                     <p className="text-white/90 text-lg leading-relaxed">{feature.desc}</p>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
-            {/* Testimonial */}
-            <section className="py-24 bg-slate-50">
+            {/* Testimonials Carousel */}
+            <section id="testimonials" className="py-24 bg-slate-50">
                 <div className="container mx-auto px-4">
-                    <div className="max-w-4xl mx-auto text-center">
-                        <div className="flex justify-center gap-1 mb-6">
-                            {[...Array(5)].map((_, i) => (
-                                <Star key={i} className="w-6 h-6 text-amber-400 fill-amber-400" />
-                            ))}
-                        </div>
-                        <blockquote className="text-2xl md:text-3xl font-medium text-slate-700 mb-8 leading-relaxed">
-                            "MedLab Secure a transformé notre façon de communiquer avec les patients.
-                            La sécurité des données était notre priorité, et ils l'ont parfaitement compris."
-                        </blockquote>
-                        <div className="flex items-center justify-center gap-4">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">
-                                DM
-                            </div>
-                            <div className="text-left">
-                                <p className="font-bold text-slate-900">Dr. Marie Nkoulou</p>
-                                <p className="text-slate-500">Directrice, Laboratoire Mvolyé</p>
+                    <AnimatedSection className="text-center max-w-3xl mx-auto mb-12">
+                        <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                            Ce que disent nos clients
+                        </h2>
+                    </AnimatedSection>
+
+                    <div className="max-w-4xl mx-auto">
+                        <div className="relative">
+                            {/* Testimonial Card */}
+                            <motion.div
+                                key={currentTestimonial}
+                                initial={{ opacity: 0, x: 50 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -50 }}
+                                transition={{ duration: 0.5 }}
+                                className="bg-white rounded-3xl p-10 shadow-xl"
+                            >
+                                <div className="flex justify-center gap-1 mb-6">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star key={i} className="w-6 h-6 text-amber-400 fill-amber-400" />
+                                    ))}
+                                </div>
+                                <blockquote className="text-2xl md:text-3xl font-medium text-slate-700 mb-8 leading-relaxed text-center">
+                                    "{testimonials[currentTestimonial].quote}"
+                                </blockquote>
+                                <div className="flex items-center justify-center gap-4">
+                                    <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${testimonials[currentTestimonial].color} flex items-center justify-center text-white text-xl font-bold`}>
+                                        {testimonials[currentTestimonial].initials}
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="font-bold text-slate-900">{testimonials[currentTestimonial].author}</p>
+                                        <p className="text-slate-500">{testimonials[currentTestimonial].role}</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* Navigation */}
+                            <div className="flex justify-center gap-4 mt-8">
+                                <button
+                                    onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
+                                    className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-primary transition-all"
+                                >
+                                    <ChevronLeft className="w-5 h-5" />
+                                </button>
+                                <div className="flex items-center gap-2">
+                                    {testimonials.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setCurrentTestimonial(i)}
+                                            className={`w-3 h-3 rounded-full transition-all ${i === currentTestimonial ? 'bg-primary w-8' : 'bg-slate-300 hover:bg-slate-400'
+                                                }`}
+                                        />
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
+                                    className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50 hover:border-primary transition-all"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -325,20 +571,28 @@ export function Landing() {
             {/* Pricing Preview */}
             <section id="pricing" className="py-24">
                 <div className="container mx-auto px-4">
-                    <div className="text-center max-w-3xl mx-auto mb-16">
+                    <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="text-4xl md:text-5xl font-bold mb-6">
                             Tarification simple et transparente
                         </h2>
                         <p className="text-xl text-slate-600">
                             14 jours d'essai gratuit. Aucune carte bancaire requise.
                         </p>
-                    </div>
+                    </AnimatedSection>
 
-                    <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                    <motion.div
+                        className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto"
+                        variants={staggerContainer}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                    >
                         {plans.map((plan, i) => (
-                            <div
+                            <motion.div
                                 key={i}
-                                className={`relative rounded-3xl p-8 transition-all duration-300 hover:scale-105 ${plan.popular
+                                variants={scaleIn}
+                                whileHover={{ scale: 1.05, y: -10 }}
+                                className={`relative rounded-3xl p-8 transition-all duration-300 ${plan.popular
                                         ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-2xl shadow-blue-500/30'
                                         : 'bg-white border-2 border-slate-200 hover:border-primary/30'
                                     }`}
@@ -373,34 +627,53 @@ export function Landing() {
                                 >
                                     Commencer
                                 </Link>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
 
-                    <div className="text-center mt-10">
+                    <AnimatedSection className="text-center mt-10" delay={0.3}>
                         <Link to="/pricing" className="text-primary font-medium hover:underline">
                             Voir tous les détails des plans →
                         </Link>
-                    </div>
+                    </AnimatedSection>
                 </div>
             </section>
 
             {/* CTA Section */}
-            <section className="py-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600">
-                <div className="container mx-auto px-4 text-center">
-                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                        Prêt à sécuriser vos résultats ?
-                    </h2>
-                    <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
-                        Rejoignez les laboratoires qui font confiance à MedLab Secure pour protéger les données de leurs patients.
-                    </p>
-                    <Link
-                        to="/become-partner"
-                        className="inline-flex h-14 items-center justify-center rounded-xl bg-white px-10 text-lg font-semibold text-blue-600 shadow-lg transition-all hover:shadow-xl hover:scale-105"
-                    >
-                        Demander une démo gratuite
-                        <ArrowRight className="w-5 h-5 ml-2" />
-                    </Link>
+            <section className="py-24 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 relative overflow-hidden">
+                {/* Animated background elements */}
+                <motion.div
+                    className="absolute top-10 left-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.2, 0.1] }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                />
+                <motion.div
+                    className="absolute bottom-10 right-10 w-80 h-80 bg-white/10 rounded-full blur-3xl"
+                    animate={{ scale: [1.3, 1, 1.3], opacity: [0.1, 0.2, 0.1] }}
+                    transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+                />
+
+                <div className="container mx-auto px-4 text-center relative z-10">
+                    <AnimatedSection>
+                        <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+                            Prêt à sécuriser vos résultats ?
+                        </h2>
+                        <p className="text-xl text-blue-100 mb-10 max-w-2xl mx-auto">
+                            Rejoignez les laboratoires qui font confiance à MedLab Secure pour protéger les données de leurs patients.
+                        </p>
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                        >
+                            <Link
+                                to="/become-partner"
+                                className="inline-flex h-14 items-center justify-center rounded-xl bg-white px-10 text-lg font-semibold text-blue-600 shadow-lg transition-all hover:shadow-xl"
+                            >
+                                Demander une démo gratuite
+                                <ArrowRight className="w-5 h-5 ml-2" />
+                            </Link>
+                        </motion.div>
+                    </AnimatedSection>
                 </div>
             </section>
 
@@ -441,9 +714,9 @@ export function Landing() {
                         <div>
                             <h4 className="font-bold mb-4">Légal</h4>
                             <ul className="space-y-3 text-slate-400">
-                                <li><a href="#" className="hover:text-white transition-colors">Mentions légales</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Politique de confidentialité</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">CGU</a></li>
+                                <li><Link to="/legal/mentions" className="hover:text-white transition-colors">Mentions légales</Link></li>
+                                <li><Link to="/legal/privacy" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
+                                <li><Link to="/legal/terms" className="hover:text-white transition-colors">CGU</Link></li>
                             </ul>
                         </div>
                     </div>
