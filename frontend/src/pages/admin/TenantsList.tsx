@@ -2,6 +2,7 @@ import * as React from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui-basic';
 import { Badge, Modal, DataTable, StatCard, useToast } from '@/components/ui-dashboard';
+import { ExportCSVButton } from '@/components/ExportCSV';
 import { Plus, Users, Building2, MessageSquare, Edit2, Trash2, Crown, Sparkles, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -253,10 +254,28 @@ export function TenantsList() {
                     <h1 className="text-2xl font-bold">{t('tenants.title')}</h1>
                     <p className="text-muted-foreground">{t('tenants.subtitle')}</p>
                 </div>
-                <Button onClick={() => setCreateModalOpen(true)} className="gap-2">
-                    <Plus className="w-4 h-4" />
-                    {t('tenants.createButton')}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <ExportCSVButton
+                        data={tenants}
+                        columns={[
+                            { key: 'name', label: t('tenants.table.name') },
+                            { key: 'slug', label: 'Slug' },
+                            { key: 'plan', label: 'Plan' },
+                            { key: 'isActive', label: t('common.status'), format: (v) => v ? t('common.active') : t('common.suspended') },
+                            { key: 'smsBalance', label: t('tenants.table.balance') },
+                            { key: 'smsSenderId', label: t('tenants.table.senderId') },
+                            { key: 'usersCount', label: t('tenants.table.users') },
+                            { key: 'contactEmail', label: t('common.email') },
+                            { key: 'createdAt', label: 'Date création', format: (v) => v ? new Date(v).toLocaleDateString('fr-FR') : '' },
+                        ]}
+                        filename="laboratoires"
+                        label={t('common.export', 'Exporter CSV')}
+                    />
+                    <Button onClick={() => setCreateModalOpen(true)} className="gap-2">
+                        <Plus className="w-4 h-4" />
+                        {t('tenants.createButton')}
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -403,8 +422,8 @@ export function TenantsList() {
                                         type="button"
                                         onClick={() => setFormData({ ...formData, plan })}
                                         className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border-2 transition-all ${isSelected
-                                                ? 'border-purple-500 bg-purple-100'
-                                                : 'border-gray-200 hover:border-purple-300'
+                                            ? 'border-purple-500 bg-purple-100'
+                                            : 'border-gray-200 hover:border-purple-300'
                                             }`}
                                     >
                                         <IconComponent className={`w-4 h-4 ${isSelected ? 'text-purple-600' : 'text-gray-500'}`} />

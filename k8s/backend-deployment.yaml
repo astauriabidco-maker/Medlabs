@@ -1,0 +1,151 @@
+# ============================================
+# MedLab Backend (NestJS API) Deployment + Service
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medlab-backend
+  namespace: medlab
+  labels:
+    app: medlab
+    component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: medlab
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: medlab
+        component: backend
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/OWNER/medlab-api:IMAGE_TAG_PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medlab-secrets
+                  key: DB_PASSWORD
+            - name: DATABASE_URL
+              value: postgresql://admin:$(DB_PASSWORD)@medlab-postgres:5432/medlab_db
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: medlab-secrets
+                  key: JWT_SECRET
+            - name: REDIS_URL
+              value: redis://medlab-redis:6379
+            - name: FRONTEND_URL
+              value: https://app.medlab.cm,https://medlab.cm
+            - name: S3_ENDPOINT
+              value: http://medlab-minio:9000
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: medlab-secrets
+                  key: MINIO_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: medlab-secrets
+                  key: MINIO_SECRET_KEY
+            - name: S3_BUCKET
+              value: medlab-documents
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: medlab-secrets
+                  key: SENTRY_DSN
+                  optional: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 40
+            periodSeconds: 30
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+      imagePullSecrets:
+        - name: ghcr-secret
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medlab-backend
+  namespace: medlab
+  labels:
+    app: medlab
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: medlab
+    component: backend
+
+---
+# HPA — Auto-scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: medlab-backend-hpa
+  namespace: medlab
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: medlab-backend
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

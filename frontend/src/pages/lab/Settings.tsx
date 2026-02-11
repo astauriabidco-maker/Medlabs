@@ -15,6 +15,7 @@ import {
     NotificationSettings,
     PaymentSettings
 } from './settings/index';
+import { SSOSettings } from '@/components/SSOSettings';
 
 export function Settings() {
     const { user } = useAuth();
@@ -26,6 +27,7 @@ export function Settings() {
         if (location.pathname.includes('/sms')) return 'sms';
         if (location.pathname.includes('/api')) return 'modules';
         if (location.pathname.includes('/payment')) return 'payment';
+        if (location.pathname.includes('/sso')) return 'sso';
         return 'general';
     };
 
@@ -62,6 +64,11 @@ export function Settings() {
                         id: 'payment',
                         label: t('settings.tabs.payment') || 'Paiement',
                         content: <PaymentSettings />,
+                    },
+                    {
+                        id: 'sso',
+                        label: 'SSO / LDAP',
+                        content: <SSOSettings />,
                     },
                 ]}
             />

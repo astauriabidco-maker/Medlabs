@@ -1,0 +1,185 @@
+# ============================================
+# PostgreSQL Backup CronJob
+# ============================================
+# Strategy:
+#   - Daily full backup at 02:00 UTC
+#   - Compressed with gzip
+#   - Stored in MinIO S3 bucket (medlab-backups)
+#   - Retention: 30 days (auto-cleanup of old backups)
+#   - Supports restore via: gunzip < backup.gz | psql
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-scripts
+  namespace: medlab
+data:
+  backup.sh: |
+    #!/bin/bash
+    set -euo pipefail
+
+    # ── Configuration ──
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="medlab_backup_${TIMESTAMP}.sql.gz"
+    S3_BUCKET="medlab-backups"
+    RETENTION_DAYS=30
+
+    echo "🔄 [$(date)] Starting PostgreSQL backup..."
+
+    # ── Dump database ──
+    PGPASSWORD="${DB_PASSWORD}" pg_dump \
+      -h medlab-postgres \
+      -U admin \
+      -d medlab_db \
+      --format=custom \
+      --compress=9 \
+      --verbose \
+      2>/tmp/pg_dump.log \
+      | gzip > /tmp/${BACKUP_FILE}
+
+    BACKUP_SIZE=$(du -sh /tmp/${BACKUP_FILE} | cut -f1)
+    echo "✅ Backup created: ${BACKUP_FILE} (${BACKUP_SIZE})"
+
+    # ── Upload to MinIO/S3 ──
+    echo "📤 Uploading to S3 (${S3_BUCKET})..."
+
+    # Configure mc (MinIO client)
+    mc alias set medlab http://medlab-minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} --api S3v4
+
+    # Create bucket if not exists
+    mc mb --ignore-existing medlab/${S3_BUCKET}
+
+    # Upload
+    mc cp /tmp/${BACKUP_FILE} medlab/${S3_BUCKET}/daily/
+
+    echo "✅ Uploaded to s3://${S3_BUCKET}/daily/${BACKUP_FILE}"
+
+    # ── Cleanup old backups (retention policy) ──
+    echo "🧹 Cleaning backups older than ${RETENTION_DAYS} days..."
+    CUTOFF_DATE=$(date -d "-${RETENTION_DAYS} days" +%Y%m%d 2>/dev/null || date -v-${RETENTION_DAYS}d +%Y%m%d)
+
+    mc ls medlab/${S3_BUCKET}/daily/ | while read -r line; do
+      FILE_NAME=$(echo "$line" | awk '{print $NF}')
+      FILE_DATE=$(echo "$FILE_NAME" | grep -oP '(?<=medlab_backup_)\d{8}' || echo "")
+      if [ -n "$FILE_DATE" ] && [ "$FILE_DATE" -lt "$CUTOFF_DATE" ] 2>/dev/null; then
+        echo "  🗑️  Removing old backup: ${FILE_NAME}"
+        mc rm "medlab/${S3_BUCKET}/daily/${FILE_NAME}"
+      fi
+    done
+
+    # ── Cleanup temp files ──
+    rm -f /tmp/${BACKUP_FILE} /tmp/pg_dump.log
+
+    echo "🏁 [$(date)] Backup completed successfully!"
+
+  restore.sh: |
+    #!/bin/bash
+    # ============================================
+    # PostgreSQL Restore Script
+    # ============================================
+    # Usage: ./restore.sh <backup_filename>
+    # Example: ./restore.sh medlab_backup_20260211_020000.sql.gz
+    #
+    # WARNING: This will overwrite the current database!
+
+    set -euo pipefail
+
+    if [ -z "${1:-}" ]; then
+      echo "Usage: $0 <backup_filename>"
+      echo "Available backups:"
+      mc alias set medlab http://medlab-minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} --api S3v4
+      mc ls medlab/medlab-backups/daily/
+      exit 1
+    fi
+
+    BACKUP_FILE=$1
+    echo "⚠️  WARNING: This will overwrite the medlab_db database!"
+    echo "Restoring from: ${BACKUP_FILE}"
+
+    # Download from S3
+    mc alias set medlab http://medlab-minio:9000 ${MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY} --api S3v4
+    mc cp "medlab/medlab-backups/daily/${BACKUP_FILE}" /tmp/restore.sql.gz
+
+    # Restore
+    gunzip -c /tmp/restore.sql.gz | PGPASSWORD="${DB_PASSWORD}" pg_restore \
+      -h medlab-postgres \
+      -U admin \
+      -d medlab_db \
+      --clean \
+      --if-exists \
+      --verbose
+
+    echo "✅ Database restored from ${BACKUP_FILE}"
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: medlab-pg-backup
+  namespace: medlab
+  labels:
+    app: medlab
+    component: backup
+spec:
+  schedule: "0 2 * * *"                # Every day at 02:00 UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800        # Max 30 minutes
+      template:
+        metadata:
+          labels:
+            app: medlab
+            component: backup
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup
+              image: alpine:3.19
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  # Install tools
+                  apk add --no-cache postgresql15-client bash curl
+
+                  # Install MinIO client
+                  curl -sL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+                  chmod +x /usr/local/bin/mc
+
+                  # Run backup
+                  /scripts/backup.sh
+              env:
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: medlab-secrets
+                      key: DB_PASSWORD
+                - name: MINIO_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: medlab-secrets
+                      key: MINIO_ACCESS_KEY
+                - name: MINIO_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: medlab-secrets
+                      key: MINIO_SECRET_KEY
+              volumeMounts:
+                - name: backup-scripts
+                  mountPath: /scripts
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: backup-scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0755

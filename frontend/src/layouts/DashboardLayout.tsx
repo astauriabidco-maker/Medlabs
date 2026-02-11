@@ -23,10 +23,14 @@ import {
     BarChart3,
     Package,
     CreditCard,
+    Sun,
+    Moon,
 } from 'lucide-react';
 
 import { useTranslation } from 'react-i18next';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { useTheme } from '@/context/ThemeContext';
+import { OnboardingTour, useOnboardingSteps, RestartOnboardingButton } from '@/components/OnboardingTour';
 
 interface NavItem {
     label: string; // Now this will be a translation key actually, but handled in render
@@ -50,6 +54,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
         { label: 'Pricing & Plans', translationKey: 'nav.pricing', path: '/dashboard/pricing-manager', icon: <CreditCard className="w-5 h-5" /> },
         { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
+        { label: 'Gestion Licences', translationKey: 'nav.licenses', path: '/dashboard/license-manager', icon: <Key className="w-5 h-5" /> },
         { label: 'Platform Settings', translationKey: 'nav.platform', path: '/dashboard/platform', icon: <Settings className="w-5 h-5" /> },
         { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
         { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
@@ -80,6 +85,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
         { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
         { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
         { label: 'Pricing & Plans', translationKey: 'nav.pricing', path: '/dashboard/pricing-manager', icon: <CreditCard className="w-5 h-5" /> },
+        { label: 'Gestion Licences', translationKey: 'nav.licenses', path: '/dashboard/license-manager', icon: <Key className="w-5 h-5" /> },
         { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
     ],
     PLATFORM_ACCOUNTANT: [
@@ -136,6 +142,7 @@ const NAV_CONFIG: Record<UserRole, NavItem[]> = {
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { t, i18n } = useTranslation();
     const { user, logout, switchRole, isImpersonating, stopImpersonating } = useAuth();
+    const { resolvedTheme, toggleTheme } = useTheme();
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
     const [roleMenuOpen, setRoleMenuOpen] = React.useState(false);
@@ -182,6 +189,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         return accessibleFeatures.includes(item.requiredFeature);
     });
 
+    // Onboarding
+    const onboardingSteps = useOnboardingSteps();
+    const isPlatformRole = ['SUPER_ADMIN', 'PLATFORM_MANAGER'].includes(user.role);
+
     return (
         <div className="min-h-screen bg-gray-50">
             {/* PWA Offline Indicator */}
@@ -193,7 +204,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <Menu className="w-6 h-6" />
                 </button>
                 <span className="font-semibold">{t('platform.title')}</span>
-                <div className="w-10" />
+                <button onClick={toggleTheme} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+                </button>
             </header>
 
             {/* Sidebar Overlay (Mobile) */}
@@ -233,7 +246,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 <div className="p-4 border-b space-y-4">
-                    {/* Language Switcher */}
+                    {/* Language & Theme Switcher */}
                     <div className="flex gap-2">
                         <button
                             onClick={() => i18n.changeLanguage('fr')}
@@ -246,6 +259,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             className={cn("flex-1 py-1 text-xs rounded border transition-colors", i18n.language.startsWith('en') ? "bg-blue-50 border-blue-200 text-blue-700 font-medium" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50")}
                         >
                             English
+                        </button>
+                        <button
+                            onClick={toggleTheme}
+                            className="flex items-center justify-center w-8 h-auto rounded border border-gray-200 hover:bg-gray-50 transition-all"
+                            title={resolvedTheme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+                        >
+                            {resolvedTheme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
                         </button>
                     </div>
 
@@ -287,6 +307,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             <p className="text-xs text-muted-foreground">{t(`roles.${user.role}`)}</p>
                         </div>
                     </div>
+                    <RestartOnboardingButton />
                     <button
                         onClick={logout}
                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
@@ -301,6 +322,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <main className={cn("lg:ml-64 min-h-screen transition-all", isImpersonating ? "pt-24 lg:pt-10" : "pt-16 lg:pt-0")}>
                 <div className="p-6">{children}</div>
             </main>
+
+            {/* Onboarding Tour */}
+            <OnboardingTour
+                steps={onboardingSteps}
+                storageKey={isPlatformRole ? 'admin' : 'lab'}
+            />
         </div>
     );
 }

@@ -37,7 +37,8 @@
         "systemAlerts": "Alertes Système",
         "financial": "Gestion Financière",
         "pricing": "Tarification",
-        "ocrConfig": "Configuration OCR"
+        "ocrConfig": "Configuration OCR",
+        "licenses": "Gestion Licences"
     },
     "auth": {
         "signInTitle": "Connexion Partenaire",
@@ -102,7 +103,18 @@
         "suspend": "Suspendre",
         "suspended": "Suspendu",
         "days": "jours",
-        "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?"
+        "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?",
+        "export": "Exporter CSV"
+    },
+    "actions": {
+        "edit": "Modifier",
+        "suspend": "Suspendre",
+        "delete": "Supprimer",
+        "impersonate": "Se connecter",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "confirm": "Confirmer",
+        "close": "Fermer"
     },
     "accessCode": {
         "title": "Code de Retrait",
@@ -238,7 +250,8 @@
             "api": "Clés API",
             "sms": "Quota SMS",
             "integrations": "Intégrations",
-            "modules": "Modules & Licences"
+            "modules": "Modules & Licences",
+            "payment": "Paiement"
         },
         "general": {
             "name": "Nom du Laboratoire",
@@ -364,14 +377,36 @@
         "subtitle": "Gestion globale de tous les comptes plateforme",
         "createButton": "Créer un Utilisateur",
         "searchPlaceholder": "Rechercher un utilisateur...",
+        "searchStaff": "Rechercher un administrateur...",
         "allRoles": "Tous les rôles",
         "noOrganization": "Administration Plateforme",
         "impersonateConfirm": "Se connecter en tant que cet utilisateur ?",
+        "addAdmin": "Nouvel Administrateur",
+        "sensitiveWarn": "⚠️ Zone sensible — Les modifications ici impactent les accès plateforme",
+        "tabs": {
+            "global": "Utilisateurs Globaux",
+            "staff": "Staff Plateforme"
+        },
         "table": {
             "user": "Utilisateur",
             "role": "Rôle",
             "organization": "Organisation",
-            "status": "Statut"
+            "status": "Statut",
+            "actions": "Actions"
+        },
+        "toasts": {
+            "created": "Utilisateur créé avec succès",
+            "updated": "Utilisateur mis à jour",
+            "failed": "Échec de l'opération",
+            "emergency": "Êtes-vous sûr de vouloir suspendre cet utilisateur immédiatement ?"
+        },
+        "modals": {
+            "createAdminTitle": "Créer un Administrateur",
+            "editUserTitle": "Modifier l'Utilisateur",
+            "email": "Adresse Email",
+            "firstName": "Prénom",
+            "lastName": "Nom",
+            "tempPassword": "Un mot de passe temporaire sera généré automatiquement"
         },
         "createUser": "Nouvel Utilisateur",
         "editUser": "Modifier l'Utilisateur",
@@ -595,5 +630,228 @@
         "errors": {
             "codeRequired": "Veuillez saisir un code de licence"
         }
+    },
+    "superAdmin": {
+        "title": "Super Admin",
+        "subtitle": "Vue d'ensemble de la plateforme",
+        "stats": {
+            "labs": "Laboratoires",
+            "users": "Utilisateurs",
+            "totalResults": "Résultats Total",
+            "today": "Aujourd'hui",
+            "thisMonth": "Ce mois",
+            "activeRate": "Taux actif",
+            "results": "Résultats"
+        },
+        "growth": {
+            "title": "Croissance de l'activité",
+            "period": "30 derniers jours"
+        },
+        "recentActivity": "Activité récente"
+    },
+    "licenses": {
+        "title": "Gestion des Licences",
+        "subtitle": "Générez, suivez et gérez les codes de licence pour les tenants",
+        "generate": "Nouvelle licence",
+        "close": "Fermer",
+        "generateForm": {
+            "title": "Générer un nouveau code de licence",
+            "selectTenant": "Attribuer à un tenant (optionnel)",
+            "selectFeatures": "Modules à activer",
+            "generate": "Générer la licence",
+            "confirm": "Confirmer",
+            "generated": "Code de licence généré"
+        },
+        "stats": {
+            "total": "Total",
+            "available": "Disponibles",
+            "used": "Utilisées",
+            "assigned": "Attribuées"
+        },
+        "table": {
+            "code": "Code",
+            "module": "Module",
+            "status": "Statut",
+            "tenant": "Tenant",
+            "createdAt": "Créée le",
+            "usedAt": "Utilisée le"
+        },
+        "filter": {
+            "all": "Tous les statuts",
+            "available": "Disponibles",
+            "used": "Utilisées"
+        },
+        "delete": "Supprimer la licence",
+        "copy": "Copier le code",
+        "noLicenses": "Aucune licence trouvée",
+        "export": "Exporter CSV"
+    },
+    "financial": {
+        "title": "Gestion Financière",
+        "subtitle": "Suivi des revenus et des paiements",
+        "mrr": "MRR (Revenu Mensuel Récurrent)",
+        "totalRevenue": "Revenu Total",
+        "activeSubscriptions": "Abonnements Actifs",
+        "paymentHistory": "Historique des paiements",
+        "invoice": "Facture",
+        "amount": "Montant",
+        "date": "Date",
+        "status": "Statut",
+        "paid": "Payé",
+        "pending": "En attente",
+        "overdue": "En retard"
+    },
+    "notifications": {
+        "title": "Notifications",
+        "subtitle": "Centre de notifications",
+        "push": {
+            "title": "Notifications Push",
+            "enable": "Activer les notifications push",
+            "enabled": "Notifications push activées",
+            "disabled": "Notifications push désactivées",
+            "permission": "Autoriser les notifications",
+            "permissionDesc": "Recevez des alertes instantanées pour les résultats critiques et les événements importants.",
+            "denied": "Les notifications sont bloquées par votre navigateur. Modifiez les paramètres de votre navigateur pour les autoriser.",
+            "unsupported": "Votre navigateur ne supporte pas les notifications push.",
+            "test": "Envoyer une notification test",
+            "testSent": "Notification test envoyée",
+            "categories": {
+                "criticalAlerts": "Alertes critiques",
+                "newResults": "Nouveaux résultats",
+                "systemAlerts": "Alertes système",
+                "appointments": "Rendez-vous"
+            }
+        },
+        "markRead": "Marquer comme lu",
+        "markAllRead": "Tout marquer comme lu",
+        "dismiss": "Masquer",
+        "empty": "Aucune notification"
+    },
+    "marketplace": {
+        "title": "Marketplace",
+        "subtitle": "Activez des modules premium pour votre laboratoire",
+        "categories": {
+            "all": "Tous",
+            "automation": "Automatisation",
+            "analytics": "Analytique",
+            "patient": "Patient",
+            "integration": "Intégration",
+            "storage": "Stockage",
+            "communication": "Communication"
+        },
+        "apiLis": {
+            "title": "API LIS Avancée",
+            "description": "Intégrez votre Système d'Information de Laboratoire (SIL) via l'API HL7/FHIR bidirectionnelle",
+            "authKey": "Clé d'authentification API",
+            "generateKey": "Générer une clé API",
+            "endpoints": "Points d'accès API",
+            "resultsList": "Liste des résultats",
+            "submitResult": "Soumettre un résultat",
+            "patientSearch": "Recherche patient",
+            "docs": "Documentation complète",
+            "advancedConfig": "Configuration avancée"
+        },
+        "howItWorks": {
+            "title": "Comment ça marche ?",
+            "step1": "Parcourez les modules disponibles",
+            "step1Desc": "Découvrez les fonctionnalités premium adaptées à votre laboratoire.",
+            "step2": "Obtenez une licence",
+            "step2Desc": "Dans l'onglet Modules, cliquez sur \"Demander\" pour le module souhaité.",
+            "step3": "Activez",
+            "step3Desc": "Saisissez votre code de licence pour activer instantanément le module."
+        },
+        "planLabel": "Inclus dans votre plan",
+        "addonLabel": "Module complémentaire",
+        "activeLabel": "Actif",
+        "requestActivation": "Demander l'activation"
+    },
+    "export": {
+        "csv": "Exporter CSV",
+        "excel": "Exporter Excel",
+        "pdf": "Exporter PDF",
+        "noData": "Aucune donnée à exporter"
+    },
+    "sso": {
+        "title": "Authentification SSO",
+        "subtitle": "Configurez l'authentification unique pour vos utilisateurs",
+        "enableSSO": "Activer le SSO",
+        "enableDesc": "Permet à vos utilisateurs de se connecter via votre annuaire d'entreprise",
+        "providers": {
+            "standard": "Standard"
+        },
+        "testConnection": "Tester la connexion",
+        "ldap": {
+            "title": "Configuration LDAP / Active Directory",
+            "host": "Serveur LDAP",
+            "port": "Port",
+            "bindPassword": "Mot de passe Bind",
+            "searchFilter": "Filtre de recherche",
+            "searchFilterHelp": "Utilisez {{username}} comme variable pour le nom d'utilisateur",
+            "useTLS": "Utiliser TLS",
+            "useTLSDesc": "Recommandé pour sécuriser les communications LDAP"
+        },
+        "oidc": {
+            "title": "Configuration OAuth2 / OpenID Connect",
+            "discoveryUrl": "URL de découverte",
+            "callbackHelp": "URL de callback automatiquement générée",
+            "quickSetup": "Configuration rapide"
+        }
+    },
+    "onboarding": {
+        "skip": "Passer",
+        "prev": "Précédent",
+        "next": "Suivant",
+        "finish": "Terminer",
+        "startTour": "Découvrir la plateforme",
+        "skipTour": "Je connais déjà, passer",
+        "restartTour": "Rejouer le tutoriel",
+        "welcomeTitle": "Bienvenue sur MedLab",
+        "welcomeDesc": "Nous allons vous guider à travers les principales fonctionnalités de la plateforme en quelques étapes simples.",
+        "steps": {
+            "dashboard": {
+                "title": "Votre Tableau de Bord",
+                "desc": "C'est votre vue d'ensemble. Vous y trouverez les statistiques clés de votre laboratoire."
+            },
+            "adminDashboard": {
+                "desc": "Vue d'ensemble de la plateforme avec les métriques clés, tenants actifs et alertes système."
+            },
+            "upload": {
+                "title": "Envoyer un Résultat",
+                "desc": "Envoyez les résultats d'analyses à vos patients par SMS ou WhatsApp en quelques clics."
+            },
+            "history": {
+                "title": "Historique des Envois",
+                "desc": "Retrouvez tous les résultats envoyés, leur statut de livraison et l'historique complet."
+            },
+            "team": {
+                "title": "Gestion de l'Équipe",
+                "desc": "Ajoutez et gérez les membres de votre équipe avec des rôles et permissions adaptés."
+            },
+            "settings": {
+                "title": "Paramètres du Laboratoire",
+                "desc": "Configurez votre laboratoire : SMS, branding, notifications et intégrations."
+            },
+            "marketplace": {
+                "title": "Marketplace",
+                "desc": "Découvrez et activez des modules supplémentaires pour enrichir votre laboratoire."
+            },
+            "tenants": {
+                "title": "Gestion des Tenants",
+                "desc": "Créez et gérez les laboratoires de la plateforme. Chaque tenant est un espace isolé."
+            },
+            "users": {
+                "title": "Gestion des Utilisateurs",
+                "desc": "Gérez tous les utilisateurs de la plateforme à travers les différents laboratoires."
+            },
+            "licenses": {
+                "title": "Gestion des Licences",
+                "desc": "Créez et distribuez des codes de licence pour activer des fonctionnalités premium."
+            }
+        }
+    },
+    "theme": {
+        "light": "Mode clair",
+        "dark": "Mode sombre",
+        "system": "Automatique"
     }
 }

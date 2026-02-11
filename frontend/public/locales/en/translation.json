@@ -37,7 +37,8 @@
         "systemAlerts": "System Alerts",
         "financial": "Financial Management",
         "pricing": "Pricing",
-        "ocrConfig": "OCR Configuration"
+        "ocrConfig": "OCR Configuration",
+        "licenses": "License Manager"
     },
     "auth": {
         "signInTitle": "Partner Login",
@@ -102,7 +103,18 @@
         "suspend": "Suspend",
         "suspended": "Suspended",
         "days": "days",
-        "confirmDelete": "Are you sure you want to delete this item?"
+        "confirmDelete": "Are you sure you want to delete this item?",
+        "export": "Export CSV"
+    },
+    "actions": {
+        "edit": "Edit",
+        "suspend": "Suspend",
+        "delete": "Delete",
+        "impersonate": "Login as",
+        "save": "Save",
+        "cancel": "Cancel",
+        "confirm": "Confirm",
+        "close": "Close"
     },
     "errors": {
         "failed": "Operation failed",
@@ -207,7 +219,10 @@
         "tabs": {
             "general": "General",
             "api": "API Keys",
-            "sms": "SMS Quota"
+            "sms": "SMS Quota",
+            "integrations": "Integrations",
+            "modules": "Modules & Licenses",
+            "payment": "Payment"
         },
         "general": {
             "name": "Laboratory Name",
@@ -333,14 +348,36 @@
         "subtitle": "Global management of all platform accounts",
         "createButton": "Create User",
         "searchPlaceholder": "Search for user...",
+        "searchStaff": "Search for admin...",
         "allRoles": "All roles",
         "noOrganization": "Platform Administration",
         "impersonateConfirm": "Login as this user?",
+        "addAdmin": "New Admin",
+        "sensitiveWarn": "⚠️ Sensitive zone — Changes here impact platform access",
+        "tabs": {
+            "global": "Global Users",
+            "staff": "Platform Staff"
+        },
         "table": {
             "user": "User",
             "role": "Role",
             "organization": "Organization",
-            "status": "Status"
+            "status": "Status",
+            "actions": "Actions"
+        },
+        "toasts": {
+            "created": "User created successfully",
+            "updated": "User updated",
+            "failed": "Operation failed",
+            "emergency": "Are you sure you want to suspend this user immediately?"
+        },
+        "modals": {
+            "createAdminTitle": "Create Admin",
+            "editUserTitle": "Edit User",
+            "email": "Email Address",
+            "firstName": "First Name",
+            "lastName": "Last Name",
+            "tempPassword": "A temporary password will be generated automatically"
         },
         "createUser": "New User",
         "editUser": "Edit User",
@@ -465,5 +502,228 @@
             "desc": "Please contact your lab secretariat to retrieve a physical version."
         },
         "reference": "Ref: HDS_RETENTION_LIMIT"
+    },
+    "superAdmin": {
+        "title": "Super Admin",
+        "subtitle": "Platform Overview",
+        "stats": {
+            "labs": "Laboratories",
+            "users": "Users",
+            "totalResults": "Total Results",
+            "today": "Today",
+            "thisMonth": "This Month",
+            "activeRate": "Active Rate",
+            "results": "Results"
+        },
+        "growth": {
+            "title": "Activity Growth",
+            "period": "Last 30 days"
+        },
+        "recentActivity": "Recent Activity"
+    },
+    "licenses": {
+        "title": "License Management",
+        "subtitle": "Generate, track and manage license codes for tenants",
+        "generate": "New License",
+        "close": "Close",
+        "generateForm": {
+            "title": "Generate a new license code",
+            "selectTenant": "Assign to a tenant (optional)",
+            "selectFeatures": "Modules to activate",
+            "generate": "Generate License",
+            "confirm": "Confirm",
+            "generated": "License code generated"
+        },
+        "stats": {
+            "total": "Total",
+            "available": "Available",
+            "used": "Used",
+            "assigned": "Assigned"
+        },
+        "table": {
+            "code": "Code",
+            "module": "Module",
+            "status": "Status",
+            "tenant": "Tenant",
+            "createdAt": "Created",
+            "usedAt": "Used on"
+        },
+        "filter": {
+            "all": "All statuses",
+            "available": "Available",
+            "used": "Used"
+        },
+        "delete": "Delete license",
+        "copy": "Copy code",
+        "noLicenses": "No licenses found",
+        "export": "Export CSV"
+    },
+    "financial": {
+        "title": "Financial Management",
+        "subtitle": "Revenue and payment tracking",
+        "mrr": "MRR (Monthly Recurring Revenue)",
+        "totalRevenue": "Total Revenue",
+        "activeSubscriptions": "Active Subscriptions",
+        "paymentHistory": "Payment History",
+        "invoice": "Invoice",
+        "amount": "Amount",
+        "date": "Date",
+        "status": "Status",
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue"
+    },
+    "notifications": {
+        "title": "Notifications",
+        "subtitle": "Notification Center",
+        "push": {
+            "title": "Push Notifications",
+            "enable": "Enable push notifications",
+            "enabled": "Push notifications enabled",
+            "disabled": "Push notifications disabled",
+            "permission": "Allow notifications",
+            "permissionDesc": "Receive instant alerts for critical results and important events.",
+            "denied": "Notifications are blocked by your browser. Change your browser settings to allow them.",
+            "unsupported": "Your browser does not support push notifications.",
+            "test": "Send test notification",
+            "testSent": "Test notification sent",
+            "categories": {
+                "criticalAlerts": "Critical Alerts",
+                "newResults": "New Results",
+                "systemAlerts": "System Alerts",
+                "appointments": "Appointments"
+            }
+        },
+        "markRead": "Mark as read",
+        "markAllRead": "Mark all as read",
+        "dismiss": "Dismiss",
+        "empty": "No notifications"
+    },
+    "marketplace": {
+        "title": "Marketplace",
+        "subtitle": "Activate premium modules for your laboratory",
+        "categories": {
+            "all": "All",
+            "automation": "Automation",
+            "analytics": "Analytics",
+            "patient": "Patient",
+            "integration": "Integration",
+            "storage": "Storage",
+            "communication": "Communication"
+        },
+        "apiLis": {
+            "title": "Advanced LIS API",
+            "description": "Integrate your Laboratory Information System (LIS) via bidirectional HL7/FHIR API",
+            "authKey": "API Authentication Key",
+            "generateKey": "Generate API Key",
+            "endpoints": "API Endpoints",
+            "resultsList": "Results List",
+            "submitResult": "Submit Result",
+            "patientSearch": "Patient Search",
+            "docs": "Full Documentation",
+            "advancedConfig": "Advanced Configuration"
+        },
+        "howItWorks": {
+            "title": "How it works",
+            "step1": "Browse available modules",
+            "step1Desc": "Discover premium features tailored to your laboratory.",
+            "step2": "Get a license",
+            "step2Desc": "In the Modules tab, click \"Request\" for the desired module.",
+            "step3": "Activate",
+            "step3Desc": "Enter your license code to instantly activate the module."
+        },
+        "planLabel": "Included in your plan",
+        "addonLabel": "Add-on module",
+        "activeLabel": "Active",
+        "requestActivation": "Request activation"
+    },
+    "export": {
+        "csv": "Export CSV",
+        "excel": "Export Excel",
+        "pdf": "Export PDF",
+        "noData": "No data to export"
+    },
+    "sso": {
+        "title": "SSO Authentication",
+        "subtitle": "Configure single sign-on for your users",
+        "enableSSO": "Enable SSO",
+        "enableDesc": "Allow your users to sign in through your corporate directory",
+        "providers": {
+            "standard": "Standard"
+        },
+        "testConnection": "Test Connection",
+        "ldap": {
+            "title": "LDAP / Active Directory Configuration",
+            "host": "LDAP Server",
+            "port": "Port",
+            "bindPassword": "Bind Password",
+            "searchFilter": "Search Filter",
+            "searchFilterHelp": "Use {{username}} as a variable for the username",
+            "useTLS": "Use TLS",
+            "useTLSDesc": "Recommended to secure LDAP communications"
+        },
+        "oidc": {
+            "title": "OAuth2 / OpenID Connect Configuration",
+            "discoveryUrl": "Discovery URL",
+            "callbackHelp": "Callback URL automatically generated",
+            "quickSetup": "Quick Setup"
+        }
+    },
+    "onboarding": {
+        "skip": "Skip",
+        "prev": "Previous",
+        "next": "Next",
+        "finish": "Finish",
+        "startTour": "Discover the Platform",
+        "skipTour": "I already know, skip",
+        "restartTour": "Replay Tutorial",
+        "welcomeTitle": "Welcome to MedLab",
+        "welcomeDesc": "We'll guide you through the main features of the platform in a few simple steps.",
+        "steps": {
+            "dashboard": {
+                "title": "Your Dashboard",
+                "desc": "This is your overview. You'll find key statistics about your laboratory here."
+            },
+            "adminDashboard": {
+                "desc": "Platform overview with key metrics, active tenants, and system alerts."
+            },
+            "upload": {
+                "title": "Send a Result",
+                "desc": "Send lab results to your patients via SMS or WhatsApp in just a few clicks."
+            },
+            "history": {
+                "title": "Sent History",
+                "desc": "View all sent results, their delivery status, and complete history."
+            },
+            "team": {
+                "title": "Team Management",
+                "desc": "Add and manage your team members with appropriate roles and permissions."
+            },
+            "settings": {
+                "title": "Lab Settings",
+                "desc": "Configure your lab: SMS, branding, notifications, and integrations."
+            },
+            "marketplace": {
+                "title": "Marketplace",
+                "desc": "Discover and activate additional modules to enhance your laboratory."
+            },
+            "tenants": {
+                "title": "Tenant Management",
+                "desc": "Create and manage platform laboratories. Each tenant is an isolated workspace."
+            },
+            "users": {
+                "title": "User Management",
+                "desc": "Manage all platform users across different laboratories."
+            },
+            "licenses": {
+                "title": "License Management",
+                "desc": "Create and distribute license codes to activate premium features."
+            }
+        }
+    },
+    "theme": {
+        "light": "Light Mode",
+        "dark": "Dark Mode",
+        "system": "Automatic"
     }
 }

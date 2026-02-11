@@ -8,6 +8,7 @@ import {
     Phone, MessageSquare, CheckCircle, XCircle, Loader2, Eye, EyeOff
 } from 'lucide-react';
 import { useIntegrations } from './useSettingsHooks';
+import { PushNotificationSettings } from '@/components/PushNotificationSettings';
 
 export function NotificationSettings() {
     const { addToast } = useToast();
@@ -33,8 +34,8 @@ export function NotificationSettings() {
                             key={prov}
                             onClick={() => setIntegration(prev => ({ ...prev, provider: prov }))}
                             className={`p-4 rounded-lg border-2 text-center transition-all ${integration.provider === prov
-                                    ? 'border-blue-500 bg-blue-50'
-                                    : 'border-gray-200 hover:border-gray-300'
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
                                 }`}
                         >
                             <p className="font-medium">{prov}</p>
@@ -142,6 +143,12 @@ export function NotificationSettings() {
                     Tester la connexion
                 </Button>
             </div>
+
+            {/* Separator */}
+            <div className="border-t pt-6">
+                <PushNotificationSettings />
+            </div>
         </div>
     );
 }
+

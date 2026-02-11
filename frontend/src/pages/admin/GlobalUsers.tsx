@@ -2,6 +2,7 @@ import * as React from 'react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui-basic';
 import { Badge, DataTable, Modal, useToast } from '@/components/ui-dashboard';
+import { ExportCSVButton } from '@/components/ExportCSV';
 import { Plus, Search, Filter, MoreHorizontal, Shield, Key, Ban, User as UserIcon, LogIn, Building2, Edit2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/context/AuthContext';
@@ -44,7 +45,7 @@ export function GlobalUsers() {
             if (search) params.append('search', search);
             if (roleFilter !== 'ALL') params.append('role', roleFilter);
 
-            const res = await api.get(`/admin/users?${params.toString()}`);
+            const res = await api.get(`/api/admin/users?${params.toString()}`);
             if (res.ok) setUsers(await res.json());
         } catch (err) {
             console.error(err);
@@ -97,7 +98,7 @@ export function GlobalUsers() {
             };
             if (formData.password) payload.password = formData.password;
 
-            const res = await api.patch(`/admin/users/${selectedUser.id}`, payload);
+            const res = await api.patch(`/api/admin/users/${selectedUser.id}`, payload);
             if (!res.ok) throw new Error('Failed');
 
             addToast(t('common.success'), 'success');
@@ -111,7 +112,7 @@ export function GlobalUsers() {
     const handleDelete = async (id: string) => {
         if (!confirm(t('common.confirmDelete'))) return;
         try {
-            await api.delete(`/admin/users/${id}`);
+            await api.delete(`/api/admin/users/${id}`);
             addToast(t('common.success'), 'success');
             fetchUsers();
         } catch (err) {
@@ -217,9 +218,24 @@ export function GlobalUsers() {
                     <h1 className="text-2xl font-bold text-slate-900">{t('users.title')}</h1>
                     <p className="text-slate-500">{t('users.subtitle')}</p>
                 </div>
-                <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
-                    <Plus className="w-4 h-4" /> {t('users.createButton')}
-                </Button>
+                <div className="flex items-center gap-3">
+                    <ExportCSVButton
+                        data={users}
+                        columns={[
+                            { key: 'firstName', label: t('users.firstName') },
+                            { key: 'lastName', label: t('users.lastName') },
+                            { key: 'email', label: t('users.email') },
+                            { key: 'role', label: t('users.role'), format: (v: string) => t(`roles.${v}`, v) },
+                            { key: 'status', label: t('common.status'), format: (v: string) => t(`status.${v}`, v) },
+                            { key: 'tenant', label: t('users.organization'), format: (_v: any, row: any) => row.tenant?.name || t('users.noOrganization') },
+                        ]}
+                        filename="utilisateurs"
+                        label={t('common.export', 'Exporter CSV')}
+                    />
+                    <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+                        <Plus className="w-4 h-4" /> {t('users.createButton')}
+                    </Button>
+                </div>
             </div>
 
             <div className="flex gap-4 items-center bg-white p-4 rounded-lg border shadow-sm">

@@ -41,7 +41,7 @@ export function UsersList() {
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/users?search=${search}`);
+            const res = await api.get(`/api/users?search=${search}`);
             if (res.ok) {
                 const data = await res.json();
                 if (activeTab === 'STAFF') {
@@ -67,7 +67,7 @@ export function UsersList() {
                 // tenantId is null/undefined for Super Admin
             };
 
-            const res = await api.post('/api/users', payload);
+            const res = await api.post('/api/users', payload);  // Already correct
             if (!res.ok) throw new Error('Failed to create user');
 
             addToast(t('users.toasts.created'), 'success');
@@ -98,7 +98,7 @@ export function UsersList() {
                 lastName: formData.lastName,
             };
 
-            const res = await api.patch(`/users/${selectedUser.id}`, payload);
+            const res = await api.patch(`/api/users/${selectedUser.id}`, payload);
             if (!res.ok) throw new Error('Failed to update user');
 
             addToast(t('users.toasts.updated'), 'success');
@@ -116,7 +116,7 @@ export function UsersList() {
     const handleForceSuspend = async (id: string) => {
         if (!confirm(t('users.toasts.emergency'))) return;
         try {
-            const res = await api.patch(`/users/${id}`, { status: 'SUSPENDED' });
+            const res = await api.patch(`/api/users/${id}`, { status: 'SUSPENDED' });
             if (res.ok) fetchUsers();
         } catch (err) {
             console.error(err);

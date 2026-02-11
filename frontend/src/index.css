@@ -58,3 +58,207 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ═══════════════════════════════════════════
+   DARK MODE — Override hardcoded Tailwind classes
+   ═══════════════════════════════════════════ */
+@layer components {
+
+  /* Backgrounds */
+  .dark .bg-white {
+    background-color: hsl(222.2 84% 6.5%) !important;
+  }
+
+  .dark .bg-gray-50 {
+    background-color: hsl(222.2 84% 4.9%) !important;
+  }
+
+  .dark .bg-gray-100 {
+    background-color: hsl(217.2 32.6% 12%) !important;
+  }
+
+  .dark .bg-slate-50 {
+    background-color: hsl(222 47% 8%) !important;
+  }
+
+  /* Text colors */
+  .dark .text-gray-900 {
+    color: hsl(210 40% 95%) !important;
+  }
+
+  .dark .text-gray-800 {
+    color: hsl(210 40% 90%) !important;
+  }
+
+  .dark .text-gray-700 {
+    color: hsl(210 40% 80%) !important;
+  }
+
+  .dark .text-gray-600 {
+    color: hsl(215 20% 65%) !important;
+  }
+
+  .dark .text-gray-500 {
+    color: hsl(215 20% 60%) !important;
+  }
+
+  .dark .text-slate-900 {
+    color: hsl(210 40% 95%) !important;
+  }
+
+  .dark .text-slate-800 {
+    color: hsl(210 40% 90%) !important;
+  }
+
+  .dark .text-slate-700 {
+    color: hsl(210 40% 80%) !important;
+  }
+
+  .dark .text-slate-600 {
+    color: hsl(215 20% 65%) !important;
+  }
+
+  .dark .text-slate-500 {
+    color: hsl(215 20% 60%) !important;
+  }
+
+  /* Borders */
+  .dark .border-gray-200 {
+    border-color: hsl(217.2 32.6% 20%) !important;
+  }
+
+  .dark .border-gray-300 {
+    border-color: hsl(217.2 32.6% 25%) !important;
+  }
+
+  .dark .border-slate-200 {
+    border-color: hsl(217.2 32.6% 20%) !important;
+  }
+
+  /* Cards & Panels */
+  .dark .shadow-sm {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .dark .shadow {
+    box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Inputs */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background-color: hsl(217.2 32.6% 12%) !important;
+    color: hsl(210 40% 95%) !important;
+    border-color: hsl(217.2 32.6% 22%) !important;
+  }
+
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: hsl(215 20% 50%) !important;
+  }
+
+  /* Tables */
+  .dark table th {
+    background-color: hsl(222 47% 8%) !important;
+    color: hsl(210 40% 85%) !important;
+  }
+
+  .dark table td {
+    border-color: hsl(217.2 32.6% 15%) !important;
+  }
+
+  .dark table tr:hover td {
+    background-color: hsl(217.2 32.6% 10%) !important;
+  }
+
+  /* Badge overrides for dark mode */
+  .dark .bg-green-50 {
+    background-color: hsl(160 40% 10%) !important;
+  }
+
+  .dark .bg-green-100 {
+    background-color: hsl(160 40% 14%) !important;
+  }
+
+  .dark .bg-red-50 {
+    background-color: hsl(0 40% 10%) !important;
+  }
+
+  .dark .bg-amber-50 {
+    background-color: hsl(40 40% 10%) !important;
+  }
+
+  .dark .bg-blue-50 {
+    background-color: hsl(220 40% 10%) !important;
+  }
+
+  .dark .bg-purple-50 {
+    background-color: hsl(270 40% 10%) !important;
+  }
+
+  .dark .bg-indigo-50 {
+    background-color: hsl(235 40% 10%) !important;
+  }
+
+  .dark .bg-slate-100 {
+    background-color: hsl(217.2 32.6% 14%) !important;
+  }
+
+  .dark .bg-purple-100 {
+    background-color: hsl(270 40% 14%) !important;
+  }
+
+  .dark .bg-amber-100 {
+    background-color: hsl(40 40% 14%) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ONBOARDING TOUR — Highlight + Animations
+   ═══════════════════════════════════════════ */
+.onboarding-highlight {
+  position: relative;
+  z-index: 10000 !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3) !important;
+  border-radius: 12px !important;
+  transition: box-shadow 0.3s ease;
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-in {
+  animation-duration: 0.3s;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-out;
+}
+
+.fade-in {
+  animation-name: slideInFromBottom;
+}
+
+.zoom-in-95 {
+  animation-name: zoomIn;
+}

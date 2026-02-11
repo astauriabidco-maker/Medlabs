@@ -1,0 +1,73 @@
+# ============================================
+# MedLab Frontend (Nginx) Deployment + Service
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medlab-frontend
+  namespace: medlab
+  labels:
+    app: medlab
+    component: frontend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: medlab
+      component: frontend
+  template:
+    metadata:
+      labels:
+        app: medlab
+        component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/OWNER/medlab-frontend:IMAGE_TAG_PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      imagePullSecrets:
+        - name: ghcr-secret
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medlab-frontend
+  namespace: medlab
+  labels:
+    app: medlab
+    component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: medlab
+    component: frontend

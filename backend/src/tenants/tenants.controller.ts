@@ -1,6 +1,7 @@
 
-import { Controller, Get, Post, Patch, Delete, Body, UseGuards, Request, UnauthorizedException, Param, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, UseGuards, Request, UnauthorizedException, Param, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { TenantsService } from './tenants.service';
@@ -15,6 +16,8 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+@ApiTags('Tenants')
+@ApiBearerAuth()
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantsController {
@@ -28,6 +31,8 @@ export class TenantsController {
 
     @Get('me')
     @Roles('LAB_ADMIN', 'TECHNICIAN', 'VIEWER')
+    @ApiOperation({ summary: 'Get current tenant info', description: 'Returns the tenant associated with the authenticated user' })
+    @ApiResponse({ status: 200, description: 'Tenant information retrieved successfully' })
     async getMyTenant(@Request() req: any) {
         const tenantId = req.user.tenantId;
         if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
@@ -44,6 +49,7 @@ export class TenantsController {
 
     @Get('me/modules')
     @Roles('LAB_ADMIN')
+    @ApiOperation({ summary: 'Get tenant modules', description: 'Returns activated modules and license information for the current tenant' })
     async getModules(@Request() req: any) {
         const tenantId = req.user.tenantId;
         if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
@@ -56,6 +62,7 @@ export class TenantsController {
      */
     @Get('me/access')
     @Roles('LAB_ADMIN', 'TECHNICIAN')
+    @ApiOperation({ summary: 'Get accessible features', description: 'Returns the list of features accessible based on plan and licenses. Used for frontend navigation filtering.' })
     async getAccessInfo(@Request() req: any) {
         const tenantId = req.user.tenantId;
         if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
@@ -94,6 +101,36 @@ export class TenantsController {
         const tenantId = req.user.tenantId;
         if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
         return this.tenantsService.revokeSyncApiKey(tenantId);
+    }
+
+    // ========== MODULE REQUEST (Contact Sales) ==========
+
+    @Post('me/request-module')
+    @Roles('LAB_ADMIN')
+    async requestModule(
+        @Request() req: any,
+        @Body() body: { moduleId: string; message?: string }
+    ) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
+        return this.licensingService.requestModule(tenantId, {
+            moduleId: body.moduleId,
+            message: body.message,
+            userId: req.user.id,
+        });
+    }
+
+    // ========== PLAN UPGRADE ==========
+
+    @Post('me/upgrade-plan')
+    @Roles('LAB_ADMIN')
+    async upgradePlan(
+        @Request() req: any,
+        @Body() body: { plan: string }
+    ) {
+        const tenantId = req.user.tenantId;
+        if (!tenantId) throw new UnauthorizedException('User is not associated with a tenant');
+        return this.licensingService.upgradePlan(tenantId, body.plan);
     }
 
     // ========== WHITE LABELING / BRANDING ==========
@@ -189,12 +226,15 @@ export class TenantsController {
 
     @Post()
     @Roles('SUPER_ADMIN')
+    @ApiOperation({ summary: 'Create a new tenant', description: 'Creates a new laboratory tenant with an admin user' })
+    @ApiResponse({ status: 201, description: 'Tenant created successfully' })
     async create(@Body() createTenantDto: CreateTenantDto) {
         return this.tenantsService.createTenantWithAdmin(createTenantDto);
     }
 
     @Get()
     @Roles('SUPER_ADMIN')
+    @ApiOperation({ summary: 'List all tenants', description: 'Returns all registered tenants with user counts and subscription info' })
     async findAll() {
         return this.tenantsService.findAll();
     }
@@ -207,7 +247,41 @@ export class TenantsController {
 
     @Delete(':id')
     @Roles('SUPER_ADMIN')
+    @ApiOperation({ summary: 'Delete a tenant', description: 'Permanently deletes a tenant and all associated data' })
+    @ApiParam({ name: 'id', description: 'Tenant ID' })
+    @ApiResponse({ status: 200, description: 'Tenant deleted successfully' })
     async deleteTenant(@Param('id') id: string) {
         return this.tenantsService.delete(id);
+    }
+
+    // ========== LICENSE CODE MANAGEMENT (Super Admin) ==========
+
+    @Post('admin/licenses')
+    @Roles('SUPER_ADMIN', 'PLATFORM_SALES')
+    async generateLicenseCode(
+        @Request() req: any,
+        @Body() body: { features: string[]; tenantId?: string; note?: string }
+    ) {
+        return this.licensingService.generateLicenseCode({
+            features: body.features,
+            generatedBy: req.user.id,
+            tenantId: body.tenantId,
+            note: body.note,
+        });
+    }
+
+    @Get('admin/licenses')
+    @Roles('SUPER_ADMIN', 'PLATFORM_SALES')
+    async listLicenseCodes(
+        @Query('status') status?: string,
+        @Query('feature') feature?: string,
+    ) {
+        return this.licensingService.listLicenseCodes({ status, feature });
+    }
+
+    @Delete('admin/licenses/:id')
+    @Roles('SUPER_ADMIN')
+    async revokeLicenseCode(@Param('id') id: string) {
+        return this.licensingService.revokeLicenseCode(id);
     }
 }

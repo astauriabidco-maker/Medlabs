@@ -24,6 +24,9 @@ export class AuthController {
 
     @Post('login')
     @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Authenticate user', description: 'Login with email and password. Returns a JWT access token for subsequent API calls.' })
+    @ApiResponse({ status: 200, description: 'Login successful, returns JWT token and user info' })
+    @ApiResponse({ status: 401, description: 'Invalid credentials' })
     async login(@Body() loginDto: LoginDto) {
         const user = await this.authService.validateUser(loginDto.email, loginDto.password);
         if (!user) {
@@ -34,12 +37,17 @@ export class AuthController {
 
     @Post('request-password-reset')
     @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Request password reset', description: 'Sends a password reset email to the user' })
+    @ApiResponse({ status: 200, description: 'Reset email sent (even if email not found, for security)' })
     async requestPasswordReset(@Body() body: RequestResetDto) {
         return this.authService.requestPasswordReset(body.email);
     }
 
     @Post('reset-password')
     @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Reset password', description: 'Reset the user password using a valid reset token' })
+    @ApiResponse({ status: 200, description: 'Password reset successfully' })
+    @ApiResponse({ status: 400, description: 'Invalid or expired token' })
     async resetPassword(@Body() body: ResetPasswordDto) {
         return this.authService.resetPassword(body.token, body.newPass);
     }
@@ -47,6 +55,9 @@ export class AuthController {
     @Post('impersonate')
     @UseGuards(JwtAuthGuard, RolesGuard)
     @Roles('SUPER_ADMIN')
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Impersonate a user', description: 'Super Admin can impersonate any user for debugging. Returns a new JWT token scoped to the target user.' })
+    @ApiResponse({ status: 200, description: 'Impersonation token returned' })
     async impersonate(@Body('userId') userId: string, @Request() req: any) {
         const originalAdminId = req.user.sub;
         return this.authService.impersonate(userId, originalAdminId);
@@ -54,6 +65,9 @@ export class AuthController {
 
     @Post('unimpersonate')
     @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Stop impersonation', description: 'End the impersonation session and return to the Super Admin account' })
+    @ApiResponse({ status: 200, description: 'Returned to original admin session' })
     async unimpersonate(@Request() req: any) {
         const originalAdminId = req.user.originalAdminId;
         if (!originalAdminId) {

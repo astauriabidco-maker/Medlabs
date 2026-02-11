@@ -79,6 +79,29 @@ export default function BIDashboard() {
             if (data.error === 'FEATURE_DISABLED') {
                 setDisabled(true);
                 setError(data.message);
+            } else if (data.overview) {
+                // Platform stats (SUPER_ADMIN) — normalize to DashboardStats shape
+                const normalized: DashboardStats = {
+                    kpis: {
+                        totalPatients: data.overview.totalResults || 0,
+                        totalRevenue: 0,
+                        topPrescriber: null,
+                        avgPerDay: data.overview.resultsThisMonth
+                            ? Math.round((data.overview.resultsThisMonth / 30) * 10) / 10
+                            : 0,
+                    },
+                    volumeByDay: (data.growthTrend || []).map((t: any) => ({
+                        date: t.date,
+                        count: t.results || 0,
+                    })),
+                    prescriberDistribution: (data.usersByRole || []).map((r: any) => ({
+                        name: r.role,
+                        count: r.count,
+                    })),
+                    peakHours: [],
+                };
+                setStats(normalized);
+                setDisabled(false);
             } else {
                 setStats(data);
                 setDisabled(false);

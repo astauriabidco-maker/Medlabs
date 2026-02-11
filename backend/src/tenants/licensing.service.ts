@@ -54,6 +54,41 @@ const ARCHIVE_RETENTION_DAYS: Record<string, number> = {
 };
 
 /**
+ * Module Pricing (in XAF FCFA / month)
+ * Used by Marketplace to display prices and by license generation
+ */
+export const MODULE_PRICING: Record<string, { price: number; label: string }> = {
+    [Feature.AUTO_SYNC]: { price: 15000, label: 'Auto-Sync Windows' },
+    [Feature.LONG_TERM_ARCHIVE]: { price: 10000, label: 'Archive Longue Durée' },
+    [Feature.ARCHIVE_5Y]: { price: 20000, label: 'Archive 5 ans' },
+    [Feature.ARCHIVE_10Y]: { price: 35000, label: 'Archive 10 ans' },
+    [Feature.ANALYTICS_BI]: { price: 15000, label: 'Analytics BI' },
+    [Feature.REALTIME_DASHBOARD]: { price: 20000, label: 'Dashboard Temps Réel' },
+    [Feature.ADVANCED_REPORTING]: { price: 12000, label: 'Reporting Avancé' },
+    [Feature.RESULT_COMPARISON]: { price: 8000, label: 'Comparaison Graphique' },
+    [Feature.PATIENT_PORTAL]: { price: 20000, label: 'Carnet de Santé Patient' },
+    [Feature.PATIENT_HISTORY]: { price: 10000, label: 'Historique Patient' },
+    [Feature.APPOINTMENTS]: { price: 15000, label: 'Rendez-vous en Ligne' },
+    [Feature.CRITICAL_ALERTS]: { price: 10000, label: 'Alertes Critiques' },
+    [Feature.WHATSAPP_BUSINESS]: { price: 0, label: 'WhatsApp Business' },     // Inclus
+    [Feature.MOBILE_MONEY]: { price: 10000, label: 'Paiements Mobile Money' },
+    [Feature.API_ADVANCED]: { price: 25000, label: 'API LIS Avancée' },
+    [Feature.UNLIMITED_TEAM]: { price: 15000, label: 'Équipe Illimitée' },
+    [Feature.E_SIGNATURE]: { price: 20000, label: 'Signature Électronique' },
+    [Feature.WORKFLOW_ENGINE]: { price: 25000, label: 'Moteur de Workflow' },
+    [Feature.PRIORITY_SUPPORT]: { price: 15000, label: 'Support Prioritaire' },
+};
+
+/**
+ * Plan pricing (in XAF FCFA / month)
+ */
+export const PLAN_PRICING: Record<string, { price: number; label: string }> = {
+    STARTER: { price: 0, label: 'Starter (Gratuit)' },
+    PREMIUM: { price: 49000, label: 'Premium' },
+    ENTERPRISE: { price: 99000, label: 'Enterprise' },
+};
+
+/**
  * Features included in each subscription plan
  * STARTER: Basic features only (sending results, team management)
  * PREMIUM: + Analytics, Long-term archive, API Integration
@@ -159,8 +194,25 @@ export class LicensingService {
         // Normalize code
         const normalizedCode = code.trim().toUpperCase();
 
-        // Check if code exists
-        const grantedFeatures = LICENSE_CODES[normalizedCode];
+        // 1. Check DB license first
+        let grantedFeatures: Feature[] | string[] | undefined;
+        const dbLicense = await this.prisma.license.findUnique({
+            where: { code: normalizedCode },
+        });
+
+        if (dbLicense) {
+            if (dbLicense.status === 'USED') {
+                throw new BadRequestException('Ce code de licence a déjà été utilisé');
+            }
+            // DB license can have a single feature or multiple (stored as comma-separated)
+            grantedFeatures = dbLicense.feature.includes(',')
+                ? dbLicense.feature.split(',').map(f => f.trim()) as Feature[]
+                : [dbLicense.feature as Feature];
+        } else {
+            // 2. Fallback to hardcoded codes (backward compatibility)
+            grantedFeatures = LICENSE_CODES[normalizedCode];
+        }
+
         if (!grantedFeatures) {
             throw new BadRequestException('Code de licence invalide');
         }
@@ -190,7 +242,6 @@ export class LicensingService {
             syncApiKey = this.generateApiKey();
             updateData.syncApiKey = syncApiKey;
         } else if (tenant.syncApiKey && grantedFeatures.includes(Feature.AUTO_SYNC)) {
-            // Return existing key if already present
             syncApiKey = tenant.syncApiKey;
         }
 
@@ -200,12 +251,9 @@ export class LicensingService {
         );
 
         if (archiveFeatures.length > 0) {
-            // Get the maximum retention days from the granted features
             const maxGrantedRetention = Math.max(
                 ...archiveFeatures.map(f => ARCHIVE_RETENTION_DAYS[f] || 0)
             );
-
-            // Only upgrade if the new retention is higher than current
             if (maxGrantedRetention > tenant.maxRetentionDays) {
                 updateData.maxRetentionDays = maxGrantedRetention;
                 this.logger.log(`🗄️ Upgrading tenant ${tenantId} retention: ${tenant.maxRetentionDays} → ${maxGrantedRetention} days`);
@@ -217,6 +265,18 @@ export class LicensingService {
             where: { id: tenantId },
             data: updateData,
         });
+
+        // Mark DB license as used
+        if (dbLicense) {
+            await this.prisma.license.update({
+                where: { id: dbLicense.id },
+                data: {
+                    status: 'USED',
+                    usedByTenantId: tenantId,
+                    usedAt: new Date(),
+                },
+            });
+        }
 
         this.logger.log(`License ${normalizedCode} activated for tenant ${tenantId}. Features: ${newFeatures.join(', ')}`);
 
@@ -231,7 +291,6 @@ export class LicensingService {
             message: `Licence activée. Modules débloqués: ${grantedFeatures.join(', ')}`,
         };
 
-        // Include syncApiKey in response if AUTO_SYNC was activated
         if (syncApiKey) {
             result.syncApiKey = syncApiKey;
         }
@@ -275,13 +334,26 @@ export class LicensingService {
         licenseKey: string | null;
         syncApiKey: string | null;
         availableModules: { id: string; name: string; description: string; active: boolean }[];
+        currentPlan: string;
+        planPricing: Record<string, { price: number; label: string }>;
+        modulePricing: Record<string, { price: number; label: string }>;
     }> {
         const tenant = await this.prisma.tenant.findUnique({
             where: { id: tenantId },
-            select: { features: true, licenseKey: true, syncApiKey: true },
+            select: {
+                features: true,
+                licenseKey: true,
+                syncApiKey: true,
+                plan: true,
+                subscription: { select: { plan: true, status: true } },
+            },
         });
 
-        const features = tenant?.features || [];
+        // Merge plan features + individual tenant features
+        const currentPlan = tenant?.subscription?.plan || tenant?.plan || 'STARTER';
+        const planFeatures = PLAN_FEATURES[currentPlan] || [];
+        const tenantFeatures = tenant?.features || [];
+        const features = [...new Set([...planFeatures, ...tenantFeatures])];
 
         // Define all available modules with categories
         const availableModules = [
@@ -426,6 +498,9 @@ export class LicensingService {
             licenseKey: tenant?.licenseKey || null,
             syncApiKey: tenant?.syncApiKey || null,
             availableModules,
+            currentPlan,
+            planPricing: PLAN_PRICING,
+            modulePricing: MODULE_PRICING,
         };
     }
 
@@ -441,11 +516,11 @@ export class LicensingService {
         allFeatures: string[];
         accessibleRoutes: string[];
     }> {
-        // Get tenant with subscription
         const tenant = await this.prisma.tenant.findUnique({
             where: { id: tenantId },
             select: {
                 features: true,
+                plan: true,
                 subscription: { select: { plan: true, status: true } }
             },
         });
@@ -454,17 +529,11 @@ export class LicensingService {
             throw new NotFoundException('Tenant not found');
         }
 
-        // Get plan (default to STARTER if no subscription)
-        const plan = tenant.subscription?.plan || 'STARTER';
+        const plan = tenant.subscription?.plan || tenant.plan || 'STARTER';
         const planFeatures = PLAN_FEATURES[plan] || [];
-
-        // Additional features from license codes
         const additionalFeatures = tenant.features || [];
-
-        // Merge all features (no duplicates)
         const allFeatures = [...new Set([...planFeatures, ...additionalFeatures])];
 
-        // Calculate accessible routes
         const accessibleRoutes = Object.entries(ROUTE_FEATURES)
             .filter(([_, feature]) => allFeatures.includes(feature))
             .map(([route]) => route);
@@ -479,17 +548,237 @@ export class LicensingService {
     }
 
     /**
-     * Check if a tenant can access a specific route based on their plan and features
+     * Check if a tenant can access a specific route
      */
     async canAccessRoute(tenantId: string, route: string): Promise<boolean> {
         const requiredFeature = ROUTE_FEATURES[route];
-
-        // If route doesn't require a feature, allow access
-        if (!requiredFeature) {
-            return true;
-        }
-
+        if (!requiredFeature) return true;
         const { allFeatures } = await this.getAccessibleFeatures(tenantId);
         return allFeatures.includes(requiredFeature);
+    }
+
+    // ===================================================================
+    // LICENSE CODE MANAGEMENT (Super Admin)
+    // ===================================================================
+
+    /**
+     * Generate a new license code in DB
+     */
+    async generateLicenseCode(data: {
+        features: string[];
+        generatedBy: string;
+        tenantId?: string; // Optional: pre-assign to a tenant
+        note?: string;
+    }): Promise<{ code: string; id: string }> {
+        // Generate unique code: PREFIX-XXXX-XXXX
+        const prefix = data.features.length === 1
+            ? data.features[0].substring(0, 4).toUpperCase()
+            : 'BNDL';
+        const randomPart = crypto.randomBytes(4).toString('hex').toUpperCase();
+        const code = `${prefix}-${randomPart.substring(0, 4)}-${randomPart.substring(4)}`;
+
+        const license = await this.prisma.license.create({
+            data: {
+                code,
+                feature: data.features.join(','),
+                status: 'AVAILABLE',
+                generatedBy: data.generatedBy,
+                ...(data.tenantId ? { usedByTenantId: data.tenantId } : {}),
+            },
+        });
+
+        if (data.tenantId) {
+            const tenant = await this.prisma.tenant.findUnique({ where: { id: data.tenantId }, select: { name: true } });
+            this.logger.log(`🔑 License code generated: ${code} for features: ${data.features.join(', ')} → pré-attribuée à "${tenant?.name}"`);
+        } else {
+            this.logger.log(`🔑 License code generated: ${code} for features: ${data.features.join(', ')}`);
+        }
+
+        return { code: license.code, id: license.id };
+    }
+
+    /**
+     * List all license codes (Super Admin)
+     */
+    async listLicenseCodes(filters?: {
+        status?: string;
+        feature?: string;
+    }): Promise<any[]> {
+        const where: any = {};
+        if (filters?.status) where.status = filters.status;
+        if (filters?.feature) where.feature = { contains: filters.feature };
+
+        return this.prisma.license.findMany({
+            where,
+            include: {
+                usedByTenant: { select: { id: true, name: true, slug: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+        });
+    }
+
+    /**
+     * Revoke a license code
+     */
+    async revokeLicenseCode(licenseId: string): Promise<void> {
+        const license = await this.prisma.license.findUnique({
+            where: { id: licenseId },
+        });
+
+        if (!license) throw new NotFoundException('License not found');
+
+        // If already used, remove the feature from the tenant
+        if (license.status === 'USED' && license.usedByTenantId) {
+            const tenant = await this.prisma.tenant.findUnique({
+                where: { id: license.usedByTenantId },
+                select: { features: true },
+            });
+
+            if (tenant) {
+                const featuresToRemove = license.feature.split(',').map(f => f.trim());
+                const updatedFeatures = tenant.features.filter(f => !featuresToRemove.includes(f));
+
+                await this.prisma.tenant.update({
+                    where: { id: license.usedByTenantId },
+                    data: { features: updatedFeatures },
+                });
+
+                this.logger.warn(`⚠️ Features ${featuresToRemove.join(', ')} revoked from tenant ${license.usedByTenantId}`);
+            }
+        }
+
+        await this.prisma.license.delete({
+            where: { id: licenseId },
+        });
+
+        this.logger.log(`🗑️ License ${license.code} deleted`);
+    }
+
+    // ===================================================================
+    // PLAN UPGRADE
+    // ===================================================================
+
+    /**
+     * Upgrade a tenant's plan
+     */
+    async upgradePlan(tenantId: string, newPlan: string): Promise<{
+        success: boolean;
+        plan: string;
+        features: string[];
+        message: string;
+    }> {
+        const validPlans = ['STARTER', 'PREMIUM', 'ENTERPRISE'];
+        if (!validPlans.includes(newPlan)) {
+            throw new BadRequestException(`Plan invalide. Plans disponibles: ${validPlans.join(', ')}`);
+        }
+
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            include: { subscription: true },
+        });
+
+        if (!tenant) throw new NotFoundException('Tenant not found');
+
+        const planFeatures = PLAN_FEATURES[newPlan] || [];
+        const existingFeatures = tenant.features || [];
+        const allFeatures = [...new Set([...existingFeatures, ...planFeatures])];
+        const pricing = PLAN_PRICING[newPlan];
+
+        // Update tenant plan
+        await this.prisma.tenant.update({
+            where: { id: tenantId },
+            data: {
+                plan: newPlan as any,
+                features: allFeatures,
+            },
+        });
+
+        // Create or update subscription
+        const now = new Date();
+        const periodEnd = new Date(now);
+        periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+        if (tenant.subscription) {
+            await this.prisma.subscription.update({
+                where: { id: tenant.subscription.id },
+                data: {
+                    plan: newPlan as any,
+                    status: newPlan === 'STARTER' ? 'TRIAL' : 'ACTIVE',
+                    pricePerMonth: pricing.price,
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEnd,
+                },
+            });
+        } else {
+            await this.prisma.subscription.create({
+                data: {
+                    tenantId,
+                    plan: newPlan as any,
+                    status: newPlan === 'STARTER' ? 'TRIAL' : 'ACTIVE',
+                    pricePerMonth: pricing.price,
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEnd,
+                },
+            });
+        }
+
+        this.logger.log(`📈 Tenant ${tenantId} upgraded to ${newPlan} plan`);
+
+        return {
+            success: true,
+            plan: newPlan,
+            features: allFeatures,
+            message: `Plan mis à jour vers ${pricing.label}. ${planFeatures.length} modules inclus.`,
+        };
+    }
+
+    // ===================================================================
+    // MODULE REQUEST (Contact Sales Flow)
+    // ===================================================================
+
+    /**
+     * Create a module request (tenant wants a module but doesn't have a license)
+     */
+    async requestModule(tenantId: string, data: {
+        moduleId: string;
+        message?: string;
+        userId: string;
+    }): Promise<{ success: boolean; message: string }> {
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { name: true, contactEmail: true },
+        });
+
+        if (!tenant) throw new NotFoundException('Tenant not found');
+
+        const pricing = MODULE_PRICING[data.moduleId];
+        if (!pricing) throw new BadRequestException('Module inconnu');
+
+        // Create a system alert for the sales team
+        await this.prisma.systemAlert.create({
+            data: {
+                type: 'PAYMENT_OVERDUE', // Reuse closest alert type
+                severity: 'INFO',
+                title: `Demande module: ${pricing.label}`,
+                message: `Le laboratoire "${tenant.name}" souhaite activer le module "${pricing.label}" (${pricing.price.toLocaleString()} FCFA/mois). ${data.message || ''}`,
+                tenantId,
+                userId: data.userId,
+                metadata: {
+                    type: 'MODULE_REQUEST',
+                    moduleId: data.moduleId,
+                    moduleLabel: pricing.label,
+                    modulePrice: pricing.price,
+                    contactEmail: tenant.contactEmail,
+                },
+            },
+        });
+
+        this.logger.log(`📩 Module request from tenant ${tenantId}: ${data.moduleId}`);
+
+        return {
+            success: true,
+            message: `Votre demande pour le module "${pricing.label}" a été envoyée à notre équipe commerciale. Nous vous contacterons sous 24h.`,
+        };
     }
 }

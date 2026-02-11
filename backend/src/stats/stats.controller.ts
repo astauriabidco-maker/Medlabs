@@ -25,6 +25,12 @@ export class StatsController {
         @Query('period') period?: '7d' | '30d' | '90d' | 'year'
     ) {
         const tenantId = req.user?.tenantId;
+
+        // SUPER_ADMIN has no tenant — return platform-wide stats
+        if (!tenantId && req.user?.role === 'SUPER_ADMIN') {
+            return this.statsService.getPlatformStats();
+        }
+
         if (!tenantId) {
             throw new ForbiddenException('No tenant associated with user');
         }

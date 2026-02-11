@@ -1,2 +1,10 @@
 node_modules/
 .env
+.env.production
+dist/
+
+# Playwright
+frontend/e2e/.auth/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/

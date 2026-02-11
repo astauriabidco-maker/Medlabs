@@ -1,0 +1,78 @@
+# ============================================
+# Redis Deployment + Service
+# ============================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medlab-redis
+  namespace: medlab
+  labels:
+    app: medlab
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medlab
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: medlab
+        component: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+            - --maxmemory
+            - "256mb"
+            - --maxmemory-policy
+            - allkeys-lru
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          emptyDir:
+            sizeLimit: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: medlab-redis
+  namespace: medlab
+  labels:
+    app: medlab
+    component: redis
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: medlab
+    component: redis

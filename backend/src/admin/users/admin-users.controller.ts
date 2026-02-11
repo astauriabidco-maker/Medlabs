@@ -1,5 +1,6 @@
 
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, BadRequestException, Request } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '../../auth/guards';
 import { PrismaService } from '../../prisma.service';
 import { CreateAdminUserDto, UpdateAdminUserDto } from './dto/admin-user.dto';
@@ -7,6 +8,8 @@ import * as bcrypt from 'bcrypt';
 import { UserStatus } from '@prisma/client';
 import { AuditService } from '../../audit/audit.service';
 
+@ApiTags('Users Management')
+@ApiBearerAuth()
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPER_ADMIN')

@@ -40,6 +40,7 @@ import './i18n'; // Initialize i18n
 // CRITICAL PATH - Loaded immediately
 // ========================================
 import { AuthProvider } from './context/AuthContext.tsx'
+import { ThemeProvider } from './context/ThemeContext.tsx'
 import { ToastProvider } from './components/ui-dashboard.tsx'
 import { DashboardLayout } from './layouts/DashboardLayout.tsx'
 import { DashboardRedirect } from './components/DashboardRedirect.tsx'
@@ -86,6 +87,7 @@ const SystemAlerts = lazy(() => import('./pages/admin/SystemAlerts.tsx').then(m 
 const FinancialDashboard = lazy(() => import('./pages/admin/FinancialDashboard.tsx').then(m => ({ default: m.FinancialDashboard })));
 const AuditLogs = lazy(() => import('./pages/admin/AuditLogs.tsx').then(m => ({ default: m.AuditLogs })));
 const OcrConfiguration = lazy(() => import('./pages/admin/OcrConfiguration.tsx'));
+const LicenseManager = lazy(() => import('./pages/admin/LicenseManager.tsx'));
 
 // Lab Admin
 const Team = lazy(() => import('./pages/admin/Team.tsx').then(m => ({ default: m.Team })));
@@ -139,6 +141,7 @@ function DashboardRoutes() {
           <Route path="financial" element={<FinancialDashboard />} />
           <Route path="audit" element={<AuditLogs />} />
           <Route path="ocr-config" element={<OcrConfiguration />} />
+          <Route path="license-manager" element={<LicenseManager />} />
 
           {/* Lab Admin Routes */}
           <Route path="team" element={<Team />} />
@@ -199,38 +202,40 @@ function ErrorFallback() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Sentry.ErrorBoundary fallback={<ErrorFallback />}>
-      <AuthProvider>
-        <ToastProvider>
-          <BrowserRouter>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<Landing />} />
-                <Route path="/become-partner" element={<BecomePartner />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <BrowserRouter>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/become-partner" element={<BecomePartner />} />
+                  <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
-                <Route path="/expired" element={<ExpiredDocument />} />
-                <Route path="/guest/access" element={<GuestAccess />} />
-                <Route path="/dashboard/*" element={<DashboardRoutes />} />
+                  <Route path="/expired" element={<ExpiredDocument />} />
+                  <Route path="/guest/access" element={<GuestAccess />} />
+                  <Route path="/dashboard/*" element={<DashboardRoutes />} />
 
-                {/* Patient Portal Routes */}
-                <Route path="/patient/:slug/login" element={<PatientLogin />} />
-                <Route path="/patient/:slug/dashboard" element={<PatientDashboard />} />
+                  {/* Patient Portal Routes */}
+                  <Route path="/patient/:slug/login" element={<PatientLogin />} />
+                  <Route path="/patient/:slug/dashboard" element={<PatientDashboard />} />
 
-                {/* Public Booking Widget */}
-                <Route path="/book/:slug" element={<Booking />} />
+                  {/* Public Booking Widget */}
+                  <Route path="/book/:slug" element={<Booking />} />
 
-                {/* Legal Pages */}
-                <Route path="/legal/mentions" element={<LegalMentions />} />
-                <Route path="/legal/privacy" element={<PrivacyPolicy />} />
-                <Route path="/legal/terms" element={<TermsOfService />} />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </ToastProvider>
-      </AuthProvider>
+                  {/* Legal Pages */}
+                  <Route path="/legal/mentions" element={<LegalMentions />} />
+                  <Route path="/legal/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/legal/terms" element={<TermsOfService />} />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </Sentry.ErrorBoundary>
   </StrictMode>,
 )

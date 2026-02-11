@@ -30,44 +30,60 @@ async function bootstrap() {
   // SWAGGER / OPENAPI DOCUMENTATION
   // ============================================
   const config = new DocumentBuilder()
-    .setTitle('MedLab API')
+    .setTitle('MedLab Public API')
     .setDescription(`
-## API de la Plateforme MedLab
+## MedLab Platform API — v2.0
 
-Documentation complète de l'API REST pour les intégrations **LIS (Laboratory Information System)** et **HL7**.
+Comprehensive REST API for the **MedLab** multi-tenant SaaS laboratory management platform.
 
-### Authentification
-Toutes les routes protégées nécessitent un token JWT Bearer.
+### 🔐 Authentication
+All protected routes require a **JWT Bearer token** obtained via \`POST /api/auth/login\`.
 
-### Modules Principaux
-- **Auth** - Authentification et gestion des tokens
-- **Results** - Envoi et gestion des résultats de laboratoire
-- **Tenants** - Gestion multi-laboratoire
-- **Integration** - API pour systèmes externes (LIS, HL7)
-- **Sync** - Synchronisation Windows/Desktop
+### 📚 API Modules
+| Module | Description |
+|--------|-------------|
+| **Auth** | User authentication, password reset, SSO/LDAP |
+| **Tenants** | Multi-tenant laboratory management, branding, plans |
+| **Users Management** | CRUD operations for platform users |
+| **Reporting** | Custom report generation with branding |
+| **Integration** | External system integrations (LIS, HL7) |
+| **Sync** | Windows desktop synchronization agent |
+| **Health** | Platform health checks and monitoring |
+| **Signatures** | Electronic document signing |
 
-### Contact
-Pour questions d'intégration: support@medlab.cm
+### 🌐 Base URL
+- **Production**: \`https://api.medlab.cm/api\`
+- **Staging**: \`https://staging.medlab.cm/api\`
+- **Local**: \`http://localhost:3005/api\`
+
+### 📧 Contact
+For integration questions: **support@medlab.cm**
     `)
-    .setVersion('1.0')
+    .setVersion('2.0')
+    .setContact('MedLab Support', 'https://medlab.cm', 'support@medlab.cm')
+    .setLicense('Proprietary', 'https://medlab.cm/legal/terms')
     .addBearerAuth(
       {
         type: 'http',
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'Authorization',
-        description: 'Enter JWT token',
+        description: 'Enter JWT token obtained from POST /api/auth/login',
         in: 'header',
       },
       'JWT-auth'
     )
-    .addTag('Auth', 'Authentication endpoints')
-    .addTag('Results', 'Medical results management')
-    .addTag('Tenants', 'Multi-tenant laboratory management')
-    .addTag('Integration', 'External system integrations (LIS/HL7)')
-    .addTag('Sync', 'Windows desktop synchronization')
-    .addTag('Stats', 'Analytics and statistics')
-    .addTag('OCR', 'OCR configuration for PDF extraction')
+    .addTag('Auth', 'Authentication, password reset, and SSO/LDAP endpoints')
+    .addTag('Tenants', 'Multi-tenant laboratory management, branding, licensing, and plan management')
+    .addTag('Users Management', 'CRUD operations for platform users (Super Admin only)')
+    .addTag('Reporting', 'Custom report generation with optional branding')
+    .addTag('Integration', 'External system integrations (LIS, HL7 message processing)')
+    .addTag('Sync', 'Windows desktop synchronization agent API')
+    .addTag('Health', 'Platform health checks and readiness probes')
+    .addTag('Signatures', 'Electronic document signing and verification')
+    .addTag('Results', 'Medical results upload and delivery')
+    .addTag('Stats', 'Analytics, BI dashboards, and statistics')
+    .addTag('OCR', 'OCR configuration for PDF data extraction')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -76,8 +92,19 @@ Pour questions d'intégration: support@medlab.cm
       persistAuthorization: true,
       tagsSorter: 'alpha',
       operationsSorter: 'alpha',
+      docExpansion: 'list',
+      filter: true,
+      showRequestDuration: true,
     },
     customSiteTitle: 'MedLab API Documentation',
+    customfavIcon: '/api/favicon.ico',
+    customCss: `
+      .swagger-ui .topbar { background-color: #1e293b; }
+      .swagger-ui .topbar .link { color: #f8fafc; }
+      .swagger-ui .info .title { color: #1e293b; }
+      .swagger-ui .btn.authorize { background-color: #2563eb; border-color: #2563eb; color: #fff; }
+      .swagger-ui .btn.authorize svg { fill: #fff; }
+    `,
   });
 
   console.log('📚 Swagger documentation available at /api/docs');
