@@ -30,8 +30,11 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for development
-const MOCK_USERS: Partial<Record<UserRole, User>> = {
+// SECURITY: Development-only check
+const IS_DEVELOPMENT = import.meta.env.DEV;
+
+// Mock users for development ONLY
+const MOCK_USERS: Partial<Record<UserRole, User>> = IS_DEVELOPMENT ? {
     SUPER_ADMIN: {
         id: 'super-admin-001',
         email: 'admin@medlab.com',
@@ -53,16 +56,16 @@ const MOCK_USERS: Partial<Record<UserRole, User>> = {
         tenantId: 'tenant-001',
         tenantName: 'Laboratoire Mvolyé',
     },
-};
+} : {}; // Empty in production — no mock users available
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = React.useState<User | null>(() => {
-        // Hydrate from localStorage
+        // Hydrate from localStorage (user info only, NOT the token)
         const stored = localStorage.getItem('user');
         return stored ? JSON.parse(stored) : null;
     });
 
-    const isImpersonating = !!localStorage.getItem('originalToken');
+    const isImpersonating = !!localStorage.getItem('originalUser');
 
     const login = async (email: string, password: string) => {
         try {
@@ -74,7 +77,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const data = await res.json();
+
+            // SECURITY: The JWT is now set as an httpOnly cookie by the backend.
+            // We only store the token in localStorage as a fallback for backward compatibility.
+            // The cookie is the primary auth mechanism and is immune to XSS.
             localStorage.setItem('token', data.access_token);
+
+            // User info (non-sensitive) is stored for UI hydration
             localStorage.setItem('user', JSON.stringify(data.user));
             setUser(data.user);
         } catch (error) {
@@ -83,7 +92,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            // Call server to clear the httpOnly cookie
+            await api.post('/api/auth/logout', {});
+        } catch {
+            // Even if the server call fails, clear local state
+        }
+
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('originalToken');
@@ -98,18 +114,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const data = await res.json();
 
-            // Save original session
-            if (!localStorage.getItem('originalToken')) {
+            // Save original session info
+            if (!localStorage.getItem('originalUser')) {
                 localStorage.setItem('originalToken', localStorage.getItem('token') || '');
                 localStorage.setItem('originalUser', JSON.stringify(user));
             }
 
-            // Set new session
+            // Set new session (cookie is set by server, but store fallback)
             localStorage.setItem('token', data.access_token);
             localStorage.setItem('user', JSON.stringify(data.user));
             setUser(data.user);
 
-            // Force reload to reset app state/sockets/etc if necessary, or just state update
+            // Force reload to reset app state/sockets/etc
             window.location.href = '/dashboard';
         } catch (error) {
             console.error('Impersonate error:', error);
@@ -132,9 +148,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    /**
+     * SECURITY: switchRole is ONLY available in development mode.
+     * In production builds (import.meta.env.DEV === false), this is a no-op
+     * and MOCK_USERS is empty, so no role switching is possible.
+     */
     const switchRole = (role: UserRole) => {
+        if (!IS_DEVELOPMENT) {
+            console.warn('SECURITY: switchRole is disabled in production.');
+            return;
+        }
         if (MOCK_USERS[role]) {
-            setUser({ ...user, ...MOCK_USERS[role] });
+            setUser({ ...user, ...MOCK_USERS[role] } as User);
         }
     };
 

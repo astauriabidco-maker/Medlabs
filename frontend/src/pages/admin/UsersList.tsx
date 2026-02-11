@@ -23,7 +23,7 @@ export function UsersList() {
     const { t } = useTranslation();
     const { addToast } = useToast();
     const navigate = useNavigate();
-    const { user: currentUser, login: authLogin } = useAuth();
+    const { user: currentUser, login: authLogin, impersonate } = useAuth();
     const [activeTab, setActiveTab] = React.useState<'STAFF' | 'GLOBAL'>('GLOBAL');
     const [users, setUsers] = React.useState<User[]>([]);
     const [search, setSearch] = React.useState('');
@@ -126,25 +126,8 @@ export function UsersList() {
     const handleImpersonate = async (userId: string, userName: string) => {
         if (!confirm(`Se connecter en tant que ${userName} ?\n\nVous serez déconnecté temporairement de votre session Super Admin.`)) return;
         try {
-            // Store current Super Admin session for return functionality
-            const currentToken = localStorage.getItem('token');
-            const currentUser = localStorage.getItem('user');
-            if (currentToken && currentUser) {
-                localStorage.setItem('originalToken', currentToken);
-                localStorage.setItem('originalUser', currentUser);
-            }
-
-            const res = await api.post('/api/auth/impersonate', { userId });
-            if (!res.ok) throw new Error('Failed to impersonate');
-
-            const data = await res.json();
-
-            // Store impersonation token and user
-            localStorage.setItem('token', data.access_token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-
-            // Refresh the page to re-render with new auth state
-            window.location.href = '/dashboard/lab-home';
+            // Use AuthContext impersonate which handles cookie + localStorage
+            await impersonate(userId);
         } catch (err) {
             console.error(err);
             addToast('Erreur lors de l\'impersonation', 'error');

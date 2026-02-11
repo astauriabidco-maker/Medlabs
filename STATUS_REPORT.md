@@ -120,6 +120,10 @@ MedLabs est une **plateforme SaaS multi-tenant** de gestion et livraison sécuri
 
 | Date | Amélioration | Impact |
 |------|-------------|--------|
+| 11 Fév | **Audit & Fix Infrastructure** — Fix proxy nginx (alias réseau docker-compose), lint bloquant CI/CD, images GHCR pointant vers le bon registry | Cohérence déploiement K8s / docker-compose |
+| 11 Fév | **Tests E2E Playwright** — 26 tests E2E couvrant Auth, Dashboard, API Health, Lab Workflow, Admin CRUD | Couverture automatisée des flux critiques |
+| 11 Fév | **CI/CD Pipeline** — GitHub Actions 5 stages (Lint → Tests → Build → E2E → Deploy K8s) | Intégration continue automatique |
+| 11 Fév | **Déploiement K8s Production** — 10 manifests K8s, HPA 2-6 pods, cert-manager Let's Encrypt, backup CronJob quotidien | Architecture production-grade |
 | 11 Fév | **Fix fusion Plan + Features** — `getLicenseInfo` fusionne maintenant `PLAN_FEATURES[plan]` + `tenant.features` | Les modules du plan Premium/Enterprise s'affichent correctement comme actifs |
 | 11 Fév | **Section API LIS Avancée** — Ajout dans le Marketplace avec clé API, endpoints de référence HL7/FHIR | Les tenants Premium voient leurs clés API et documentation d'intégration |
 | 11 Fév | **Pré-attribution de licences** — Sélecteur de tenant obligatoire dans le formulaire de génération de licence | Le Super Admin peut directement rattacher une licence à un laboratoire |
@@ -136,10 +140,10 @@ MedLabs est une **plateforme SaaS multi-tenant** de gestion et livraison sécuri
 ### 🔴 Priorité Haute
 | Tâche | Description | Effort estimé |
 |-------|-------------|---------------|
-| **Tests E2E automatisés** | Pas de suite de tests E2E (Cypress/Playwright) pour les flux critiques | 2-3 semaines |
-| **CI/CD Pipeline** | Pas de pipeline d'intégration/déploiement continu configuré | 1 semaine |
-| **Déploiement Production** | Configuration Kubernetes/Docker Swarm + variables de prod + certificats SSL | 1-2 semaines |
-| **Backup Strategy** | Plan de sauvegarde automatique PostgreSQL + S3 | 2-3 jours |
+| ~~**Tests E2E automatisés**~~ | ✅ 26 tests Playwright (Auth, Dashboard, API, Lab Workflow, Admin CRUD) | ✅ FAIT |
+| ~~**CI/CD Pipeline**~~ | ✅ GitHub Actions 5 stages (Lint → Tests → Build → E2E → Deploy) | ✅ FAIT |
+| ~~**Déploiement Production**~~ | ✅ K8s complet (10 manifests, HPA, cert-manager, Ingress, backup CronJob) | ✅ FAIT |
+| ~~**Backup Strategy**~~ | ✅ CronJob pg_dump → MinIO/S3 quotidien à 02:00 UTC + rétention 30 jours | ✅ FAIT |
 
 ### 🟡 Priorité Moyenne
 | Tâche | Description | Effort estimé |

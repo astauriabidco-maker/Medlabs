@@ -2,6 +2,21 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
+import { Request } from 'express';
+
+/**
+ * SECURITY: Custom JWT extraction that checks httpOnly cookie first, then Authorization header.
+ * This allows browsers to use secure cookies while API clients (mobile, sync agent) use Bearer tokens.
+ */
+function cookieOrBearerExtractor(req: Request): string | null {
+    // 1. Try httpOnly cookie first (most secure for browsers)
+    if (req?.cookies?.access_token) {
+        return req.cookies.access_token;
+    }
+
+    // 2. Fallback to Authorization Bearer header (for API clients, mobile apps, Swagger)
+    return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -14,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         }
 
         super({
-            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            jwtFromRequest: cookieOrBearerExtractor,
             ignoreExpiration: false,
             secretOrKey: jwtSecret,
         });

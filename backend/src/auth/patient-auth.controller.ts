@@ -38,6 +38,17 @@ export class PatientAuthController {
         });
     }
 
+    /**
+     * SECURITY: Get patient JWT secret without insecure fallback.
+     */
+    private getPatientSecret(): string {
+        const secret = process.env.PATIENT_JWT_SECRET;
+        if (!secret) {
+            throw new Error('CRITICAL: PATIENT_JWT_SECRET is not configured.');
+        }
+        return secret;
+    }
+
     @Post('challenge')
     @HttpCode(HttpStatus.OK)
     async challenge(@Body('token') token: string) {
@@ -46,7 +57,7 @@ export class PatientAuthController {
         let payload: any;
         try {
             payload = this.jwtService.verify(token, {
-                secret: process.env.PATIENT_JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getPatientSecret(),
             });
         } catch {
             throw new UnauthorizedException('Invalid or expired token');
@@ -107,7 +118,7 @@ export class PatientAuthController {
         // 1. Verify JWT
         try {
             this.jwtService.verify(token, {
-                secret: process.env.PATIENT_JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getPatientSecret(),
             });
         } catch {
             throw new UnauthorizedException('Invalid or expired token');
@@ -200,7 +211,7 @@ export class PatientAuthController {
         // 1. Verify JWT
         try {
             this.jwtService.verify(token, {
-                secret: process.env.PATIENT_JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getPatientSecret(),
             });
         } catch {
             throw new UnauthorizedException('Invalid or expired token');
@@ -312,7 +323,7 @@ export class PatientAuthController {
         let payload: any;
         try {
             payload = this.jwtService.verify(token, {
-                secret: process.env.PATIENT_JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getPatientSecret(),
             });
         } catch {
             throw new UnauthorizedException('Invalid or expired link');

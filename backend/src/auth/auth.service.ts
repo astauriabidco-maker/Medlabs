@@ -17,6 +17,19 @@ export class AuthService {
         private auditService: AuditService,
     ) { }
 
+    /**
+     * SECURITY: Get JWT secret without insecure fallback.
+     * In development, falls back to env-validated secret.
+     * In production, env.validation.ts already prevents startup without JWT_SECRET.
+     */
+    private getJwtSecret(): string {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            throw new Error('CRITICAL: JWT_SECRET is not configured. Cannot sign tokens.');
+        }
+        return secret;
+    }
+
     async validateUser(email: string, pass: string): Promise<any> {
         this.logger.log(`Login Attempt: ${email}`);
         const user = await this.prisma.user.findUnique({ where: { email } });
@@ -51,7 +64,7 @@ export class AuthService {
 
         return {
             access_token: this.jwtService.sign(payload, {
-                secret: process.env.JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getJwtSecret(),
                 expiresIn: '12h'
             }),
             user: {
@@ -85,7 +98,7 @@ export class AuthService {
         const resetToken = this.jwtService.sign(
             { sub: user.id, email: user.email, type: 'RESET_PASSWORD' },
             {
-                secret: process.env.JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getJwtSecret(),
                 expiresIn: '1h'
             }
         );
@@ -100,7 +113,7 @@ export class AuthService {
     async resetPassword(token: string, newPass: string) {
         try {
             const payload = this.jwtService.verify(token, {
-                secret: process.env.JWT_SECRET || 'dev_secret_key_123'
+                secret: this.getJwtSecret()
             });
 
             if (payload.type !== 'RESET_PASSWORD') {
@@ -152,7 +165,7 @@ export class AuthService {
 
         return {
             access_token: this.jwtService.sign(payload, {
-                secret: process.env.JWT_SECRET || 'dev_secret_key_123',
+                secret: this.getJwtSecret(),
                 expiresIn: '1h'
             }),
             user: {

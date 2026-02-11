@@ -41,6 +41,7 @@ export default function PatientLogin() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber }),
+                credentials: 'include',
             });
 
             const data = await res.json();
@@ -68,6 +69,7 @@ export default function PatientLogin() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phoneNumber, code: otpCode }),
+                credentials: 'include',
             });
 
             const data = await res.json();

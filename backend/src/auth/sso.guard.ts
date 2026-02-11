@@ -103,33 +103,36 @@ export class SSOGuard implements CanActivate {
 
     /**
      * Validate an LDAP session token
-     * In production, this would verify the LDAP bind and search for the user
+     * SECURITY: Fails closed - throws until real LDAP validation is implemented
      */
     private async validateLDAPSession(
         _token: string,
         _config: LDAPConfig,
         _tenantId: string,
     ): Promise<boolean> {
-        // LDAP validation logic
+        // SECURITY: Fail closed until real LDAP validation is implemented
         // In production: use ldapjs to bind and verify credentials
-        // For now: return true if token format is valid
-        this.logger.log('LDAP session validation - delegating to ldapjs');
-        return true;
+        this.logger.error('LDAP session validation called but NOT YET IMPLEMENTED - rejecting for security');
+        throw new UnauthorizedException(
+            'LDAP authentication is not yet fully implemented. Contact your administrator.'
+        );
     }
 
     /**
      * Validate an OIDC/OAuth2 token
-     * In production, this would verify the token against the IdP
+     * SECURITY: Fails closed - throws until real OIDC validation is implemented
      */
     private async validateOIDCToken(
         _token: string,
         _config: OIDCConfig,
         _tenantId: string,
     ): Promise<boolean> {
-        // OIDC token validation logic
+        // SECURITY: Fail closed until real OIDC validation is implemented
         // In production: verify JWT signature against IdP JWKS
-        this.logger.log('OIDC token validation - verifying against discovery endpoint');
-        return true;
+        this.logger.error('OIDC token validation called but NOT YET IMPLEMENTED - rejecting for security');
+        throw new UnauthorizedException(
+            'OIDC authentication is not yet fully implemented. Contact your administrator.'
+        );
     }
 }
 

@@ -176,7 +176,11 @@ export class SignaturesService {
      * Generate a cryptographic signature
      */
     private generateSignature(data: any): string {
-        const secret = process.env.JWT_SECRET || 'medlabs-signature-secret';
+        // SECURITY: Use dedicated signature secret, fall back to JWT_SECRET, never use a hardcoded string
+        const secret = process.env.SIGNATURE_SECRET || process.env.JWT_SECRET;
+        if (!secret) {
+            throw new Error('CRITICAL: No signature secret configured (SIGNATURE_SECRET or JWT_SECRET)');
+        }
         const payload = JSON.stringify(data);
         return crypto.createHmac('sha256', secret).update(payload).digest('hex');
     }

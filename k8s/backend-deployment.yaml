@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/OWNER/medlab-api:IMAGE_TAG_PLACEHOLDER
+          image: ghcr.io/astauriabidco-maker/medlabs/medlab-api:IMAGE_TAG_PLACEHOLDER
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

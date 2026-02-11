@@ -8,6 +8,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { validateEnvironment } from './config/env.validation';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -25,6 +26,11 @@ async function bootstrap() {
 
   // Global API prefix
   app.setGlobalPrefix('api');
+
+  // ============================================
+  // SECURITY: Cookie Parser (for httpOnly JWT cookies)
+  // ============================================
+  app.use(cookieParser());
 
   // ============================================
   // SWAGGER / OPENAPI DOCUMENTATION

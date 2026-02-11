@@ -6,7 +6,6 @@ interface RequestOptions extends RequestInit {
 }
 
 async function request(endpoint: string, options: RequestOptions = {}) {
-    const token = localStorage.getItem('token');
     const language = localStorage.getItem('i18nextLng') || 'fr';
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -14,15 +13,19 @@ async function request(endpoint: string, options: RequestOptions = {}) {
         ...options.headers,
     };
 
+    // SECURITY: No need to manually set Authorization header anymore.
+    // The httpOnly cookie is automatically sent by the browser.
+    // However, we keep Bearer token support as a fallback for backward compatibility
+    // (e.g., if the cookie is not yet set but localStorage has a token from a previous session).
+    const token = localStorage.getItem('token');
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
-    console.log('Outgoing Request Headers:', headers);
-
-    const config = {
+    const config: RequestInit = {
         ...options,
         headers,
+        credentials: 'include', // SECURITY: Include cookies in cross-origin requests
     };
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);

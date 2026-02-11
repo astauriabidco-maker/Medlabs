@@ -8,7 +8,7 @@ export class MagicLinkService {
     async generateLink(documentId: string): Promise<string> {
         const payload = { sub: documentId, type: 'guest_access' };
         const token = this.jwtService.sign(payload, {
-            secret: process.env.PATIENT_JWT_SECRET || 'dev_secret_key_123',
+            secret: process.env.PATIENT_JWT_SECRET || (() => { throw new Error('CRITICAL: PATIENT_JWT_SECRET not configured'); })(),
             expiresIn: '48h',
         });
 

@@ -22,6 +22,10 @@ services:
       dockerfile: Dockerfile
     container_name: medlab_backend
     restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - medlab-backend
     ports:
       - "3000:3000"
     environment:

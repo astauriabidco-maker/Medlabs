@@ -19,6 +19,16 @@ export function validateEnvironment(): void {
         errors.push(`JWT_SECRET must be at least 32 characters. Current length: ${jwtSecret.length}`);
     }
 
+    // 2b. Validate PATIENT_JWT_SECRET (used for patient document access)
+    const patientSecret = process.env.PATIENT_JWT_SECRET;
+    if (process.env.NODE_ENV === 'production') {
+        if (!patientSecret) {
+            errors.push('PATIENT_JWT_SECRET is required in production.');
+        } else if (patientSecret.length < 32) {
+            errors.push(`PATIENT_JWT_SECRET must be at least 32 characters. Current length: ${patientSecret.length}`);
+        }
+    }
+
     // 3. Validate DATABASE_URL in production
     if (process.env.NODE_ENV === 'production') {
         if (!process.env.DATABASE_URL) {
