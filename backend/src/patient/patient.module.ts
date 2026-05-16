@@ -9,10 +9,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
-        JwtModule.register({
-            secret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-            signOptions: { expiresIn: '24h' },
-        }),
+        JwtModule.register({}),
         NotificationsModule,
     ],
     controllers: [PatientAuthController, PatientHistoryController],

@@ -39,7 +39,7 @@ export function GlobalUsers() {
     });
     const [tenants, setTenants] = React.useState<{ id: string, name: string }[]>([]);
 
-    const fetchUsers = async () => {
+    const fetchUsers = React.useCallback(async () => {
         try {
             const params = new URLSearchParams();
             if (search) params.append('search', search);
@@ -50,20 +50,20 @@ export function GlobalUsers() {
         } catch (err) {
             console.error(err);
         }
-    };
+    }, [roleFilter, search]);
 
-    const fetchTenants = async () => {
+    const fetchTenants = React.useCallback(async () => {
         const res = await api.get('/api/tenants');
         if (res.ok) setTenants(await res.json());
-    };
+    }, []);
 
     React.useEffect(() => {
         fetchUsers();
-    }, [search, roleFilter]);
+    }, [fetchUsers]);
 
     React.useEffect(() => {
         if (isCreateOpen) fetchTenants();
-    }, [isCreateOpen]);
+    }, [fetchTenants, isCreateOpen]);
 
     const handleCreate = async () => {
         try {

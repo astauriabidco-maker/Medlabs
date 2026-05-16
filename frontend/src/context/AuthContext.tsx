@@ -15,6 +15,7 @@ interface User {
     role: UserRole;
     tenantId: string | null;
     tenantName: string | null;
+    isImpersonated?: boolean;
 }
 
 interface AuthContextType {
@@ -23,7 +24,7 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<void>;
     logout: () => void;
     impersonate: (userId: string) => Promise<void>;
-    stopImpersonating: () => void;
+    stopImpersonating: () => Promise<void>;
     isImpersonating: boolean;
     switchRole: (role: UserRole) => void; // Dev only
 }
@@ -65,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return stored ? JSON.parse(stored) : null;
     });
 
-    const isImpersonating = !!localStorage.getItem('originalUser');
+    const isImpersonating = !!user?.isImpersonated;
 
     const login = async (email: string, password: string) => {
         try {
@@ -77,11 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const data = await res.json();
-
-            // SECURITY: The JWT is now set as an httpOnly cookie by the backend.
-            // We only store the token in localStorage as a fallback for backward compatibility.
-            // The cookie is the primary auth mechanism and is immune to XSS.
-            localStorage.setItem('token', data.access_token);
 
             // User info (non-sensitive) is stored for UI hydration
             localStorage.setItem('user', JSON.stringify(data.user));
@@ -100,10 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Even if the server call fails, clear local state
         }
 
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
-        localStorage.removeItem('originalToken');
-        localStorage.removeItem('originalUser');
         setUser(null);
     };
 
@@ -114,14 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const data = await res.json();
 
-            // Save original session info
-            if (!localStorage.getItem('originalUser')) {
-                localStorage.setItem('originalToken', localStorage.getItem('token') || '');
-                localStorage.setItem('originalUser', JSON.stringify(user));
-            }
-
-            // Set new session (cookie is set by server, but store fallback)
-            localStorage.setItem('token', data.access_token);
+            // Cookie is set by the server; only persist non-sensitive user info for UI hydration.
             localStorage.setItem('user', JSON.stringify(data.user));
             setUser(data.user);
 
@@ -133,18 +119,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const stopImpersonating = () => {
-        const originalToken = localStorage.getItem('originalToken');
-        const originalUser = localStorage.getItem('originalUser');
+    const stopImpersonating = async () => {
+        try {
+            const res = await api.post('/api/auth/unimpersonate', {});
+            if (!res.ok) throw new Error('Unimpersonation failed');
 
-        if (originalToken && originalUser) {
-            localStorage.setItem('token', originalToken);
-            localStorage.setItem('user', originalUser);
-            setUser(JSON.parse(originalUser));
-
-            localStorage.removeItem('originalToken');
-            localStorage.removeItem('originalUser');
+            const data = await res.json();
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setUser(data.user);
             window.location.href = '/dashboard/users-directory';
+        } catch (error) {
+            console.error('Unimpersonate error:', error);
+            throw error;
         }
     };
 

@@ -76,10 +76,10 @@ export function useTenantSettings() {
 
     React.useEffect(() => {
         fetch('/api/tenants/me', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            credentials: 'include',
         })
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
                 setTenant({
                     name: data.name || '',
                     address: data.address || '',
@@ -94,12 +94,12 @@ export function useTenantSettings() {
                     whatsappBusinessAccountId: data.whatsappBusinessAccountId,
                 });
             })
-            .catch(err => console.error('Failed to load tenant:', err))
+            .catch((err) => console.error('Failed to load tenant:', err))
             .finally(() => setLoading(false));
     }, []);
 
     const updateTenant = (updates: Partial<typeof tenant>) => {
-        setTenant(prev => ({ ...prev, ...updates }));
+        setTenant((prev) => ({ ...prev, ...updates }));
     };
 
     const saveTenant = async (data: Partial<typeof tenant>) => {
@@ -108,15 +108,15 @@ export function useTenantSettings() {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
+                credentials: 'include',
                 body: JSON.stringify(data),
             });
             if (!res.ok) throw new Error('Failed to save');
             addToast('Paramètres enregistrés', 'success');
             return true;
         } catch {
-            addToast('Erreur lors de l\'enregistrement', 'error');
+            addToast("Erreur lors de l'enregistrement", 'error');
             return false;
         }
     };
@@ -133,16 +133,19 @@ export function useModules() {
 
     React.useEffect(() => {
         Promise.all([
-            api.get('/api/tenants/me/modules').then(r => r.json()),
-            api.get('/api/tenants/me/sync-key').then(r => r.json()),
+            api.get('/api/tenants/me/modules').then((r) => r.json()),
+            api.get('/api/tenants/me/sync-key').then((r) => r.json()),
         ])
             .then(([modulesData, syncData]) => {
-                if (modulesData.availableModules) setModules(modulesData.availableModules);
+                if (modulesData.availableModules)
+                    setModules(modulesData.availableModules);
                 if (modulesData.syncApiKey || syncData.syncApiKey) {
-                    setSyncApiKey(modulesData.syncApiKey || syncData.syncApiKey);
+                    setSyncApiKey(
+                        modulesData.syncApiKey || syncData.syncApiKey,
+                    );
                 }
             })
-            .catch(err => console.error('Failed to load modules:', err))
+            .catch((err) => console.error('Failed to load modules:', err))
             .finally(() => setLoading(false));
     }, []);
 
@@ -154,8 +157,8 @@ export function useModules() {
             setSyncApiKey(data.syncApiKey);
             addToast('Clé générée avec succès', 'success');
             return data.syncApiKey;
-        } catch (err: any) {
-            addToast(err.message || 'Erreur', 'error');
+        } catch (err: unknown) {
+            addToast(err instanceof Error ? err.message : 'Erreur', 'error');
             return null;
         }
     };
@@ -184,17 +187,28 @@ export function useModules() {
             // Refresh modules
             const modulesRes = await api.get('/api/tenants/me/modules');
             const modulesData = await modulesRes.json();
-            if (modulesData.availableModules) setModules(modulesData.availableModules);
+            if (modulesData.availableModules)
+                setModules(modulesData.availableModules);
 
             addToast(data.message || 'Licence activée', 'success');
             return true;
-        } catch (err: any) {
-            addToast(err.message || 'Échec activation', 'error');
+        } catch (err: unknown) {
+            addToast(
+                err instanceof Error ? err.message : 'Échec activation',
+                'error',
+            );
             return false;
         }
     };
 
-    return { modules, syncApiKey, loading, generateSyncKey, revokeSyncKey, activateLicense };
+    return {
+        modules,
+        syncApiKey,
+        loading,
+        generateSyncKey,
+        revokeSyncKey,
+        activateLicense,
+    };
 }
 
 // Hook for integrations (SMS/WhatsApp)
@@ -218,8 +232,8 @@ export function useIntegrations() {
 
     React.useEffect(() => {
         api.get('/api/integrations')
-            .then(res => res.json())
-            .then(data => {
+            .then((res) => res.json())
+            .then((data) => {
                 if (data.exists) {
                     setIntegration({
                         exists: true,
@@ -235,7 +249,7 @@ export function useIntegrations() {
                     });
                 }
             })
-            .catch(err => console.error('Failed to load integrations:', err))
+            .catch((err) => console.error('Failed to load integrations:', err))
             .finally(() => setLoading(false));
     }, []);
 
@@ -253,7 +267,11 @@ export function useIntegrations() {
             });
             if (!res.ok) throw new Error('Failed');
             addToast('Configuration enregistrée', 'success');
-            setIntegration(prev => ({ ...prev, exists: true, authToken: '' }));
+            setIntegration((prev) => ({
+                ...prev,
+                exists: true,
+                authToken: '',
+            }));
             return true;
         } catch {
             addToast('Erreur', 'error');
@@ -268,12 +286,15 @@ export function useIntegrations() {
         try {
             const res = await api.post('/api/integrations/test', {});
             const data = await res.json();
-            setIntegration(prev => ({
+            setIntegration((prev) => ({
                 ...prev,
                 lastTestedAt: new Date(),
                 testStatus: data.success ? 'success' : 'failed',
             }));
-            addToast(data.success ? 'Test réussi' : 'Test échoué', data.success ? 'success' : 'error');
+            addToast(
+                data.success ? 'Test réussi' : 'Test échoué',
+                data.success ? 'success' : 'error',
+            );
             return data.success;
         } catch {
             addToast('Erreur lors du test', 'error');
@@ -283,5 +304,13 @@ export function useIntegrations() {
         }
     };
 
-    return { integration, setIntegration, loading, saving, testing, saveIntegration, testConnection };
+    return {
+        integration,
+        setIntegration,
+        loading,
+        saving,
+        testing,
+        saveIntegration,
+        testConnection,
+    };
 }

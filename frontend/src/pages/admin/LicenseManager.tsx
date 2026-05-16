@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from '@/components/ui-basic';
 import {
     Key, Plus, Trash2, RefreshCw, Check, Copy, Search,
@@ -66,38 +66,14 @@ export default function LicenseManager() {
     const [showGenerateForm, setShowGenerateForm] = useState(false);
     const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
 
-    useEffect(() => {
-        fetchLicenses();
-        fetchTenants();
-    }, [filterStatus, filterFeature]);
-
-    const fetchTenants = async () => {
-        setLoadingTenants(true);
+    const fetchLicenses = useCallback(async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/tenants', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setTenants(Array.isArray(data) ? data : (data.tenants || []));
-            }
-        } catch (error) {
-            console.error('Error fetching tenants:', error);
-        }
-        setLoadingTenants(false);
-    };
-
-    const fetchLicenses = async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
             const params = new URLSearchParams();
             if (filterStatus) params.set('status', filterStatus);
             if (filterFeature) params.set('feature', filterFeature);
 
             const res = await fetch(`/api/tenants/admin/licenses?${params.toString()}`, {
-                headers: { Authorization: `Bearer ${token}` },
+                credentials: 'include',
             });
             if (res.ok) {
                 setLicenses(await res.json());
@@ -109,7 +85,55 @@ export default function LicenseManager() {
             addToast('Erreur réseau', 'error');
         }
         setLoading(false);
-    };
+    }, [addToast, filterFeature, filterStatus]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const params = new URLSearchParams();
+        if (filterStatus) params.set('status', filterStatus);
+        if (filterFeature) params.set('feature', filterFeature);
+
+        fetch(`/api/tenants/admin/licenses?${params.toString()}`, {
+            credentials: 'include',
+        })
+            .then((res) => {
+                if (!res.ok) {
+                    addToast('Erreur lors du chargement des licences', 'error');
+                    return null;
+                }
+                return res.json();
+            })
+            .then((data) => {
+                if (data && !cancelled) setLicenses(data);
+            })
+            .catch((error) => {
+                console.error('Error fetching licenses:', error);
+                addToast('Erreur réseau', 'error');
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+
+        fetch('/api/tenants', {
+            credentials: 'include',
+        })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data && !cancelled) {
+                    setTenants(Array.isArray(data) ? data : data.tenants || []);
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching tenants:', error);
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingTenants(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [addToast, filterFeature, filterStatus]);
 
     const generateLicense = async () => {
         if (selectedFeatures.length === 0) {
@@ -122,13 +146,12 @@ export default function LicenseManager() {
         }
         setGenerating(true);
         try {
-            const token = localStorage.getItem('token');
             const res = await fetch('/api/tenants/admin/licenses', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     features: selectedFeatures,
                     tenantId: selectedTenantId,
@@ -155,10 +178,9 @@ export default function LicenseManager() {
     const revokeLicense = async (id: string, code: string) => {
         if (!confirm(`Révoquer la licence ${code} ? Si elle a été utilisée, les features seront retirées du tenant.`)) return;
         try {
-            const token = localStorage.getItem('token');
             const res = await fetch(`/api/tenants/admin/licenses/${id}`, {
                 method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
+                credentials: 'include',
             });
             if (res.ok) {
                 addToast(`Licence ${code} supprimée`, 'success');

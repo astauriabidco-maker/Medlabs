@@ -44,8 +44,8 @@ export function GeneralSettings() {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     brandColor: tenant.brandColor,
                     slug: tenant.slug,
@@ -79,7 +79,7 @@ export function GeneralSettings() {
             formData.append('logo', file);
             const res = await fetch('/api/tenants/me/logo', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                credentials: 'include',
                 body: formData,
             });
             if (!res.ok) throw new Error('Upload failed');

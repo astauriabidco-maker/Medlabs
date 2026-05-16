@@ -8,6 +8,10 @@ interface BrandingData {
     brandLogoUrl: string | null;
 }
 
+interface ApiErrorResponse {
+    message?: string;
+}
+
 export default function PatientLogin() {
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
@@ -44,15 +48,15 @@ export default function PatientLogin() {
                 credentials: 'include',
             });
 
-            const data = await res.json();
+            const data = await res.json() as ApiErrorResponse;
 
             if (!res.ok) {
                 throw new Error(data.message || 'Erreur lors de l\'envoi du code');
             }
 
             setStep('otp');
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi du code');
         } finally {
             setLoading(false);
         }
@@ -72,20 +76,16 @@ export default function PatientLogin() {
                 credentials: 'include',
             });
 
-            const data = await res.json();
+            const data = await res.json() as ApiErrorResponse;
 
             if (!res.ok) {
                 throw new Error(data.message || 'Code incorrect');
             }
 
-            // Store token
-            localStorage.setItem('patientToken', data.token);
-            localStorage.setItem('patientSlug', slug || '');
-
             // Navigate to dashboard
             navigate(`/patient/${slug}/dashboard`);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Code incorrect');
         } finally {
             setLoading(false);
         }

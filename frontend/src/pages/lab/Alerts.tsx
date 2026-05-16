@@ -24,8 +24,6 @@ export default function Alerts() {
     const [formMustContainAll, setFormMustContainAll] = useState(true);
     const [formMessage, setFormMessage] = useState('');
 
-    const token = localStorage.getItem('token');
-
     useEffect(() => {
         fetchData();
     }, []);
@@ -35,10 +33,10 @@ export default function Alerts() {
         try {
             const [rulesRes, phoneRes] = await Promise.all([
                 fetch('/api/alerts/rules', {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include',
                 }),
                 fetch('/api/alerts/biologist-phone', {
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include',
                 }),
             ]);
 
@@ -59,9 +57,9 @@ export default function Alerts() {
             await fetch('/api/alerts/biologist-phone', {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ biologistPhone }),
             });
             alert('Numéro du biologiste enregistré');
@@ -105,18 +103,18 @@ export default function Alerts() {
                 await fetch(`/api/alerts/rules/${editingRule.id}`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',
                     body: JSON.stringify(data),
                 });
             } else {
                 await fetch('/api/alerts/rules', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',
                     body: JSON.stringify(data),
                 });
             }
@@ -133,9 +131,9 @@ export default function Alerts() {
             await fetch(`/api/alerts/rules/${rule.id}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ isActive: !rule.isActive }),
             });
             fetchData();
@@ -150,7 +148,7 @@ export default function Alerts() {
         try {
             await fetch(`/api/alerts/rules/${id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include',
             });
             fetchData();
         } catch (error) {

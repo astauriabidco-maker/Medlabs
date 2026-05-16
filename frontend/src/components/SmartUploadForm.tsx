@@ -1,10 +1,32 @@
 import { useState, useCallback, useEffect } from 'react';
-import { UploadCloud, FileCheck, AlertTriangle, Loader2, X, Sparkles, Lock, Wallet, Stethoscope } from 'lucide-react';
-import { Button, Input, Label, Card, CardHeader, CardTitle, CardContent } from './ui-basic';
+import {
+    UploadCloud,
+    FileCheck,
+    AlertTriangle,
+    Loader2,
+    X,
+    Sparkles,
+    Lock,
+    Wallet,
+    Stethoscope,
+} from 'lucide-react';
+import {
+    Button,
+    Input,
+    Label,
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+} from './ui-basic';
 import { useTranslation } from 'react-i18next';
 import { AccessCodeModal } from './AccessCodeModal';
 import * as pdfjsLib from 'pdfjs-dist';
-import { extractPdfData, ExtractedData, OcrProgressCallback } from '@/lib/pdf-extractor';
+import {
+    extractPdfData,
+    ExtractedData,
+    OcrProgressCallback,
+} from '@/lib/pdf-extractor';
 
 // Worker configuration
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -19,10 +41,10 @@ interface FormData {
     phone: string;
     isBlocked: boolean;
     price: string;
-    prescriberName: string;  // Médecin prescripteur (for BI Dashboard)
-    consentGiven: boolean;   // Consentement patient pour envoi électronique
-    civility: '' | 'M' | 'Mme' | 'Mlle';  // Civilité patient
-    sampleDate: string;  // Date de prélèvement (ISO format)
+    prescriberName: string; // Médecin prescripteur (for BI Dashboard)
+    consentGiven: boolean; // Consentement patient pour envoi électronique
+    civility: '' | 'M' | 'Mme' | 'Mlle'; // Civilité patient
+    sampleDate: string; // Date de prélèvement (ISO format)
 }
 
 export function SmartUploadForm() {
@@ -30,11 +52,16 @@ export function SmartUploadForm() {
     const [file, setFile] = useState<File | null>(null);
     const [dragging, setDragging] = useState(false);
     const [parsing, setParsing] = useState(false);
-    const [ocrProgress, setOcrProgress] = useState<{ percent: number; status: string } | null>(null);
+    const [ocrProgress, setOcrProgress] = useState<{
+        percent: number;
+        status: string;
+    } | null>(null);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [autoExtracted, setAutoExtracted] = useState<ExtractedData | null>(null);
+    const [autoExtracted, setAutoExtracted] = useState<ExtractedData | null>(
+        null,
+    );
 
     // Liste des prescripteurs configurés par le laboratoire
     const [prescribers, setPrescribers] = useState<string[]>([]);
@@ -51,7 +78,7 @@ export function SmartUploadForm() {
         prescriberName: '',
         consentGiven: false,
         civility: '',
-        sampleDate: ''
+        sampleDate: '',
     });
 
     // Access Code Modal state
@@ -62,10 +89,8 @@ export function SmartUploadForm() {
     useEffect(() => {
         const loadPrescribers = async () => {
             try {
-                const token = localStorage.getItem('token');
-                if (!token) return;
                 const res = await fetch('/api/tenants/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    credentials: 'include',
                 });
                 if (res.ok) {
                     const data = await res.json();
@@ -90,7 +115,7 @@ export function SmartUploadForm() {
         }
     }, []);
 
-    const parsePdf = async (file: File) => {
+    const parsePdf = useCallback(async (file: File) => {
         setParsing(true);
         setAutoExtracted(null);
         setOcrProgress(null);
@@ -108,7 +133,7 @@ export function SmartUploadForm() {
                 setAutoExtracted(extracted);
 
                 // Auto-fill form with extracted data (SAUF prescriberName - doit être sélectionné manuellement)
-                setForm(prev => ({
+                setForm((prev) => ({
                     ...prev,
                     firstName: extracted.patientFirstName || prev.firstName,
                     lastName: extracted.patientLastName || prev.lastName,
@@ -122,16 +147,19 @@ export function SmartUploadForm() {
 
             // Also try to extract DOB using the original method
             const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer })
+                .promise;
             const page = await pdf.getPage(1);
             const textContent = await page.getTextContent();
-            const text = textContent.items.map((item: any) => item.str).join(' ');
+            const text = textContent.items
+                .map((item) => ('str' in item ? item.str : ''))
+                .join(' ');
 
             // DOB patterns
             const bornDatePatterns = [
-                /N[ée](?:e)?\s+(?:le)?\s*[:.]?\s*(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/i,
-                /Date\s+de\s+naissance\s*[:.]?\s*(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/i,
-                /D\.?D\.?N\.?\s*[:.]?\s*(\d{2}[\/\-\.]\d{2}[\/\-\.]\d{4})/i,
+                /N[ée](?:e)?\s+(?:le)?\s*[:.]?\s*(\d{2}[/.-]\d{2}[/.-]\d{4})/i,
+                /Date\s+de\s+naissance\s*[:.]?\s*(\d{2}[/.-]\d{2}[/.-]\d{4})/i,
+                /D\.?D\.?N\.?\s*[:.]?\s*(\d{2}[/.-]\d{2}[/.-]\d{4})/i,
             ];
 
             let foundDob = '';
@@ -144,42 +172,45 @@ export function SmartUploadForm() {
             }
 
             if (foundDob) {
-                setForm(prev => ({
+                setForm((prev) => ({
                     ...prev,
                     dob: foundDob,
                 }));
             }
-
         } catch (err) {
             console.error('[SmartUploadForm] Parse error:', err);
             setError(t('errors.parsing'));
         } finally {
             setParsing(false);
         }
-    };
+    }, [t]);
 
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragging(false);
-        setError(null);
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragging(false);
+            setError(null);
 
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            const droppedFile = e.dataTransfer.files[0];
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                const droppedFile = e.dataTransfer.files[0];
 
-            if (droppedFile.type !== 'application/pdf') {
-                setError(t('errors.pdf_only'));
-                return;
+                if (droppedFile.type !== 'application/pdf') {
+                    setError(t('errors.pdf_only'));
+                    return;
+                }
+                if (droppedFile.size > 10 * 1024 * 1024) {
+                    // 10MB
+                    setError(t('errors.file_size'));
+                    return;
+                }
+
+                setFile(droppedFile);
+                parsePdf(droppedFile);
             }
-            if (droppedFile.size > 10 * 1024 * 1024) { // 10MB
-                setError(t('errors.file_size'));
-                return;
-            }
-
-            setFile(droppedFile);
-            parsePdf(droppedFile);
-        }
-    }, []);
+        },
+        [parsePdf, t],
+    );
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -225,7 +256,7 @@ export function SmartUploadForm() {
         formData.append('patientName', `${form.firstName} ${form.lastName}`);
         // Convert DD/MM/YYYY to ISO if needed, or send as is strictly.
         // Assuming backend handles ISO or specific format. Let's convert to ISO YYYY-MM-DD
-        const [day, month, year] = form.dob.split(/[\/\-.]/);
+        const [day, month, year] = form.dob.split(/[/.-]/);
         if (day && month && year) {
             formData.append('patientDob', `${year}-${month}-${day}`);
         } else {
@@ -287,12 +318,13 @@ export function SmartUploadForm() {
                 prescriberName: '',
                 consentGiven: false,
                 civility: '',
-                sampleDate: ''
+                sampleDate: '',
             });
-
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err.message);
+            setError(
+                err instanceof Error ? err.message : t('errors.upload_failed'),
+            );
         } finally {
             setLoading(false);
         }
@@ -317,7 +349,10 @@ export function SmartUploadForm() {
                     <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 text-green-700">
                         <FileCheck className="w-5 h-5" />
                         <span>{t('upload.success')}</span>
-                        <button onClick={() => setSuccess(false)} className="ml-auto p-1 hover:bg-green-100 rounded">
+                        <button
+                            onClick={() => setSuccess(false)}
+                            className="ml-auto p-1 hover:bg-green-100 rounded"
+                        >
                             <X className="w-4 h-4" />
                         </button>
                     </div>
@@ -341,10 +376,19 @@ export function SmartUploadForm() {
                             id="file-upload"
                             onChange={handleFileChange}
                         />
-                        <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
-                            <UploadCloud className={`w-12 h-12 mb-4 ${dragging ? 'text-primary' : 'text-gray-400'}`} />
-                            <p className="text-lg font-medium text-gray-700">{t('upload.dragDrop')}</p>
-                            <p className="text-sm text-gray-500 mt-1">{t('upload.browse')}</p>
+                        <label
+                            htmlFor="file-upload"
+                            className="cursor-pointer flex flex-col items-center"
+                        >
+                            <UploadCloud
+                                className={`w-12 h-12 mb-4 ${dragging ? 'text-primary' : 'text-gray-400'}`}
+                            />
+                            <p className="text-lg font-medium text-gray-700">
+                                {t('upload.dragDrop')}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                                {t('upload.browse')}
+                            </p>
                         </label>
                     </div>
                 ) : (
@@ -352,10 +396,19 @@ export function SmartUploadForm() {
                         <FileCheck className="w-8 h-8 text-blue-500 mr-3" />
                         <div className="flex-1 overflow-hidden">
                             <p className="font-medium truncate">{file.name}</p>
-                            <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <p className="text-xs text-gray-500">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
                         </div>
-                        {parsing && <span className="text-xs text-blue-500 mr-3 animate-pulse">{t('upload.parsing')}</span>}
-                        <button onClick={removeFile} className="text-gray-400 hover:text-red-500 p-1">
+                        {parsing && (
+                            <span className="text-xs text-blue-500 mr-3 animate-pulse">
+                                {t('upload.parsing')}
+                            </span>
+                        )}
+                        <button
+                            onClick={removeFile}
+                            className="text-gray-400 hover:text-red-500 p-1"
+                        >
                             <X className="w-5 h-5" />
                         </button>
                     </div>
@@ -376,7 +429,9 @@ export function SmartUploadForm() {
                                 style={{ width: `${ocrProgress.percent}%` }}
                             />
                         </div>
-                        <p className="text-xs text-orange-600 mt-1">{ocrProgress.status}</p>
+                        <p className="text-xs text-orange-600 mt-1">
+                            {ocrProgress.status}
+                        </p>
                     </div>
                 )}
 
@@ -393,12 +448,20 @@ export function SmartUploadForm() {
                                     OCR
                                 </span>
                             )}
-                            <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${autoExtracted.confidence === 'high' ? 'bg-green-100 text-green-700' :
-                                autoExtracted.confidence === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-gray-100 text-gray-600'
-                                }`}>
-                                {autoExtracted.confidence === 'high' ? t('upload.ocr.high') :
-                                    autoExtracted.confidence === 'medium' ? t('upload.ocr.medium') : t('upload.ocr.low')}
+                            <span
+                                className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                    autoExtracted.confidence === 'high'
+                                        ? 'bg-green-100 text-green-700'
+                                        : autoExtracted.confidence === 'medium'
+                                          ? 'bg-yellow-100 text-yellow-700'
+                                          : 'bg-gray-100 text-gray-600'
+                                }`}
+                            >
+                                {autoExtracted.confidence === 'high'
+                                    ? t('upload.ocr.high')
+                                    : autoExtracted.confidence === 'medium'
+                                      ? t('upload.ocr.medium')
+                                      : t('upload.ocr.low')}
                             </span>
                         </div>
                     </div>
@@ -414,12 +477,19 @@ export function SmartUploadForm() {
                 <form onSubmit={handleSubmit} className="mt-8 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="folderRef">{t('upload.folderRef')} *</Label>
+                            <Label htmlFor="folderRef">
+                                {t('upload.folderRef')} *
+                            </Label>
                             <Input
                                 id="folderRef"
                                 required
                                 value={form.folderRef}
-                                onChange={e => setForm({ ...form, folderRef: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        folderRef: e.target.value,
+                                    })
+                                }
                                 placeholder="DOS-2024-..."
                             />
                         </div>
@@ -429,7 +499,9 @@ export function SmartUploadForm() {
                                 id="dob"
                                 required
                                 value={form.dob}
-                                onChange={e => setForm({ ...form, dob: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({ ...form, dob: e.target.value })
+                                }
                                 placeholder="DD/MM/YYYY"
                             />
                         </div>
@@ -442,7 +514,16 @@ export function SmartUploadForm() {
                             <select
                                 id="civility"
                                 value={form.civility}
-                                onChange={e => setForm({ ...form, civility: e.target.value as '' | 'M' | 'Mme' | 'Mlle' })}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        civility: e.target.value as
+                                            | ''
+                                            | 'M'
+                                            | 'Mme'
+                                            | 'Mlle',
+                                    })
+                                }
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
                                 <option value="">-- Sélectionner --</option>
@@ -452,12 +533,19 @@ export function SmartUploadForm() {
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="sampleDate">Date de Prélèvement</Label>
+                            <Label htmlFor="sampleDate">
+                                Date de Prélèvement
+                            </Label>
                             <Input
                                 id="sampleDate"
                                 type="date"
                                 value={form.sampleDate}
-                                onChange={e => setForm({ ...form, sampleDate: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        sampleDate: e.target.value,
+                                    })
+                                }
                             />
                         </div>
                     </div>
@@ -465,19 +553,33 @@ export function SmartUploadForm() {
                     {/* Prénom + Nom */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="firstName">{t('upload.firstName')}</Label>
+                            <Label htmlFor="firstName">
+                                {t('upload.firstName')}
+                            </Label>
                             <Input
                                 id="firstName"
                                 value={form.firstName}
-                                onChange={e => setForm({ ...form, firstName: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        firstName: e.target.value,
+                                    })
+                                }
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="lastName">{t('upload.lastName')}</Label>
+                            <Label htmlFor="lastName">
+                                {t('upload.lastName')}
+                            </Label>
                             <Input
                                 id="lastName"
                                 value={form.lastName}
-                                onChange={e => setForm({ ...form, lastName: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        lastName: e.target.value,
+                                    })
+                                }
                             />
                         </div>
                     </div>
@@ -490,49 +592,81 @@ export function SmartUploadForm() {
                                 type="email"
                                 required
                                 value={form.email}
-                                onChange={e => setForm({ ...form, email: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({ ...form, email: e.target.value })
+                                }
                                 placeholder="patient@example.com"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="phone" className="flex justify-between">
+                            <Label
+                                htmlFor="phone"
+                                className="flex justify-between"
+                            >
                                 <span>{t('upload.phone')} *</span>
-                                <span className="text-xs text-gray-500 font-normal">Strict E.164 (+237...)</span>
+                                <span className="text-xs text-gray-500 font-normal">
+                                    Strict E.164 (+237...)
+                                </span>
                             </Label>
                             <Input
                                 id="phone"
                                 required
                                 value={form.phone}
-                                onChange={e => setForm({ ...form, phone: e.target.value })}
+                                onChange={(e) =>
+                                    setForm({ ...form, phone: e.target.value })
+                                }
                                 placeholder="+237 6..."
-                                className={form.phone && !validatePhone(form.phone) ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                                className={
+                                    form.phone && !validatePhone(form.phone)
+                                        ? 'border-red-500 focus-visible:ring-red-500'
+                                        : ''
+                                }
                             />
                             {form.phone && !validatePhone(form.phone) && (
-                                <p className="text-xs text-red-500">{t('errors.invalid_phone')}</p>
+                                <p className="text-xs text-red-500">
+                                    {t('errors.invalid_phone')}
+                                </p>
                             )}
                         </div>
                     </div>
 
                     {/* Prescriber Name (BI Dashboard) - Select avec liste préremplie */}
                     <div className="space-y-2">
-                        <Label htmlFor="prescriberName" className="flex items-center gap-2">
+                        <Label
+                            htmlFor="prescriberName"
+                            className="flex items-center gap-2"
+                        >
                             <Stethoscope className="w-4 h-4 text-purple-500" />
                             {t('upload.prescriberName', 'Médecin Prescripteur')}
-                            <span className="text-xs text-gray-400 font-normal">(Facultatif - pour statistiques)</span>
+                            <span className="text-xs text-gray-400 font-normal">
+                                (Facultatif - pour statistiques)
+                            </span>
                         </Label>
                         <select
                             id="prescriberName"
                             value={form.prescriberName}
-                            onChange={e => setForm({ ...form, prescriberName: e.target.value })}
+                            onChange={(e) =>
+                                setForm({
+                                    ...form,
+                                    prescriberName: e.target.value,
+                                })
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                         >
-                            <option value="">-- Sélectionner un prescripteur --</option>
+                            <option value="">
+                                -- Sélectionner un prescripteur --
+                            </option>
                             {prescribers.map((name, idx) => (
-                                <option key={idx} value={name}>{name}</option>
+                                <option key={idx} value={name}>
+                                    {name}
+                                </option>
                             ))}
                         </select>
                         {prescribers.length === 0 && (
-                            <p className="text-xs text-gray-400 italic">Aucun prescripteur configuré. Ajoutez-les dans Paramètres.</p>
+                            <p className="text-xs text-gray-400 italic">
+                                Aucun prescripteur configuré. Ajoutez-les dans
+                                Paramètres.
+                            </p>
                         )}
                     </div>
 
@@ -543,19 +677,39 @@ export function SmartUploadForm() {
                                 type="checkbox"
                                 id="isBlocked"
                                 checked={form.isBlocked}
-                                onChange={e => setForm({ ...form, isBlocked: e.target.checked })}
+                                onChange={(e) =>
+                                    setForm({
+                                        ...form,
+                                        isBlocked: e.target.checked,
+                                    })
+                                }
                                 className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
                             />
-                            <label htmlFor="isBlocked" className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                            <label
+                                htmlFor="isBlocked"
+                                className="flex items-center gap-2 text-sm font-medium cursor-pointer"
+                            >
                                 <Lock className="w-4 h-4 text-orange-500" />
-                                <span>{t('upload.isBlocked', 'Résultat bloqué (Impayé)')}</span>
+                                <span>
+                                    {t(
+                                        'upload.isBlocked',
+                                        'Résultat bloqué (Impayé)',
+                                    )}
+                                </span>
                             </label>
                         </div>
                         {form.isBlocked && (
                             <div className="pl-7 space-y-2">
-                                <Label htmlFor="price" className="flex items-center gap-2">
+                                <Label
+                                    htmlFor="price"
+                                    className="flex items-center gap-2"
+                                >
                                     <Wallet className="w-4 h-4 text-green-600" />
-                                    {t('upload.price', 'Montant restant (FCFA)')} *
+                                    {t(
+                                        'upload.price',
+                                        'Montant restant (FCFA)',
+                                    )}{' '}
+                                    *
                                 </Label>
                                 <Input
                                     id="price"
@@ -563,12 +717,20 @@ export function SmartUploadForm() {
                                     min="0"
                                     required={form.isBlocked}
                                     value={form.price}
-                                    onChange={e => setForm({ ...form, price: e.target.value })}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            price: e.target.value,
+                                        })
+                                    }
                                     placeholder="Ex: 15000"
                                     className="max-w-xs"
                                 />
                                 <p className="text-xs text-gray-500">
-                                    {t('upload.priceHint', 'Le patient devra payer ce montant par Mobile Money pour accéder au résultat')}
+                                    {t(
+                                        'upload.priceHint',
+                                        'Le patient devra payer ce montant par Mobile Money pour accéder au résultat',
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -582,20 +744,39 @@ export function SmartUploadForm() {
                                     type="checkbox"
                                     id="consentGiven"
                                     checked={form.consentGiven}
-                                    onChange={e => setForm({ ...form, consentGiven: e.target.checked })}
+                                    onChange={(e) =>
+                                        setForm({
+                                            ...form,
+                                            consentGiven: e.target.checked,
+                                        })
+                                    }
                                     className="w-5 h-5 mt-0.5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
                                 />
-                                <label htmlFor="consentGiven" className="text-sm text-gray-700 cursor-pointer leading-relaxed">
+                                <label
+                                    htmlFor="consentGiven"
+                                    className="text-sm text-gray-700 cursor-pointer leading-relaxed"
+                                >
                                     <span className="font-medium text-gray-900">
-                                        Je confirme avoir recueilli l'accord du patient pour :
+                                        Je confirme avoir recueilli l'accord du
+                                        patient pour :
                                     </span>
                                     <ul className="mt-2 ml-4 list-disc space-y-1 text-gray-600">
-                                        <li>L'envoi de ses résultats par voie électronique (WhatsApp et/ou Email)</li>
-                                        <li>L'utilisation de ses données personnelles uniquement dans le cadre de cet examen médical</li>
+                                        <li>
+                                            L'envoi de ses résultats par voie
+                                            électronique (WhatsApp et/ou Email)
+                                        </li>
+                                        <li>
+                                            L'utilisation de ses données
+                                            personnelles uniquement dans le
+                                            cadre de cet examen médical
+                                        </li>
                                     </ul>
                                     <p className="mt-2 text-xs text-gray-500 italic">
-                                        Conformément à la Loi n°2010/012 relative à la cybersécurité et cybercriminalité au Cameroun,
-                                        aucune exploitation commerciale ne sera faite de ces informations.
+                                        Conformément à la Loi n°2010/012
+                                        relative à la cybersécurité et
+                                        cybercriminalité au Cameroun, aucune
+                                        exploitation commerciale ne sera faite
+                                        de ces informations.
                                     </p>
                                 </label>
                             </div>
@@ -603,15 +784,30 @@ export function SmartUploadForm() {
                         {!form.consentGiven && file && (
                             <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
                                 <AlertTriangle className="w-3 h-3" />
-                                Vous devez confirmer le consentement du patient pour envoyer le résultat
+                                Vous devez confirmer le consentement du patient
+                                pour envoyer le résultat
                             </p>
                         )}
                     </div>
 
                     <div className="pt-4">
-                        <Button type="submit" className="w-full" disabled={loading || !file || !validatePhone(form.phone) || !form.dob || !form.consentGiven}>
-                            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            {loading ? t('upload.btn_uploading') : t('upload.btn_send')}
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={
+                                loading ||
+                                !file ||
+                                !validatePhone(form.phone) ||
+                                !form.dob ||
+                                !form.consentGiven
+                            }
+                        >
+                            {loading && (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            )}
+                            {loading
+                                ? t('upload.btn_uploading')
+                                : t('upload.btn_send')}
                         </Button>
                     </div>
                 </form>
@@ -621,11 +817,12 @@ export function SmartUploadForm() {
             <AccessCodeModal
                 isOpen={showAccessCodeModal}
                 accessCode={accessCode}
-                patientName={`${form.firstName} ${form.lastName}`.trim() || 'Patient'}
+                patientName={
+                    `${form.firstName} ${form.lastName}`.trim() || 'Patient'
+                }
                 folderRef={form.folderRef || 'N/A'}
                 onClose={() => setShowAccessCodeModal(false)}
             />
         </Card>
     );
 }
-

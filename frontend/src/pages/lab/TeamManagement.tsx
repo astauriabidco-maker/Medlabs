@@ -31,7 +31,7 @@ export function TeamManagement() {
         role: 'TECHNICIAN' as const,
     });
 
-    const fetchMembers = async () => {
+    const fetchMembers = React.useCallback(async () => {
         try {
             const res = await fetch(`/api/users?search=${search}`);
             if (res.ok) {
@@ -43,11 +43,11 @@ export function TeamManagement() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [search]);
 
     React.useEffect(() => {
         fetchMembers();
-    }, [search]);
+    }, [fetchMembers]);
 
     const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();

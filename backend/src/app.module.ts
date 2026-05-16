@@ -8,7 +8,6 @@ import { StorageModule } from './storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ResultsModule } from './results/results.module';
-import { PrismaService } from './prisma.service';
 import { DynamicConfigModule } from './dynamic-config.module';
 import { PlatformConfigController } from './platform-config.controller';
 import { UsersModule } from './users/users.module';
@@ -57,7 +56,7 @@ import { HealthModule } from './health/health.module';
       {
         name: 'short',
         ttl: 60000, // 1 minute
-        limit: 10,  // 10 requests per minute (for auth routes)
+        limit: 10, // 10 requests per minute (for auth routes)
       },
       {
         name: 'long',
@@ -113,5 +112,4 @@ import { HealthModule } from './health/health.module';
     },
   ],
 })
-export class AppModule { }
-
+export class AppModule {}
