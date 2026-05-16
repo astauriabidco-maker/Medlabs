@@ -29,11 +29,6 @@ export function PlatformSettings() {
     const { user } = useAuth();
     const { addToast } = useToast();
 
-    // Redirect non-super-admins
-    if (user?.role !== 'SUPER_ADMIN') {
-        return <Navigate to="/dashboard" replace />;
-    }
-
     // SMS Gateway State
     const [smsConfig, setSmsConfig] = React.useState<SmsConfig>({
         provider: 'twilio',
@@ -113,6 +108,11 @@ export function PlatformSettings() {
         addToast(t('platform.smtp.testSuccess', { email: user?.email }), 'success');
         setTestingEmail(false);
     };
+
+    // Redirect non-super-admins after hooks are declared.
+    if (user?.role !== 'SUPER_ADMIN') {
+        return <Navigate to="/dashboard" replace />;
+    }
 
     const tabs = [
         {

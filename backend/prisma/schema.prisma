@@ -516,6 +516,9 @@ model Document {
   status       DocumentStatus @default(UPLOADED)
   isAnonymized Boolean        @default(false) @map("is_anonymized")
   isCritical   Boolean        @default(false) @map("is_critical")  // Flagged by keyword analysis
+  deletedAt    DateTime?      @map("deleted_at") // Soft delete: API access blocked immediately
+  purgeRequestedAt DateTime?  @map("purge_requested_at") // Physical storage purge pending
+  purgedAt      DateTime?     @map("purged_at") // Physical file deleted from storage
 
   // Payment (Paywall)
   price         Float          @default(0)
@@ -542,6 +545,8 @@ model Document {
   transactions Transaction[]
 
   @@index([tenantId])
+  @@index([deletedAt])
+  @@index([purgeRequestedAt, purgedAt])
   @@index([folderRef])
   @@index([accessKey])
   @@index([accessCode])

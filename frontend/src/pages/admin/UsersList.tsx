@@ -38,7 +38,7 @@ export function UsersList() {
         password: '',
     });
 
-    const fetchUsers = async () => {
+    const fetchUsers = React.useCallback(async () => {
         setLoading(true);
         try {
             const res = await api.get(`/api/users?search=${search}`);
@@ -55,7 +55,7 @@ export function UsersList() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, search]);
 
     const handleCreateAdmin = async () => {
         try {
@@ -111,7 +111,7 @@ export function UsersList() {
 
     React.useEffect(() => {
         fetchUsers();
-    }, [search, activeTab]);
+    }, [fetchUsers]);
 
     const handleForceSuspend = async (id: string) => {
         if (!confirm(t('users.toasts.emergency'))) return;

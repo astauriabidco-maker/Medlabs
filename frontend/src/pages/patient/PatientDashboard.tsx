@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FileText, Download, Calendar, LogOut, Loader2, FileX, User } from 'lucide-react';
 
@@ -17,6 +17,10 @@ interface DocumentItem {
     downloadUrl: string;
 }
 
+interface DocumentsResponse {
+    documents?: DocumentItem[];
+}
+
 export default function PatientDashboard() {
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
@@ -28,16 +32,40 @@ export default function PatientDashboard() {
     const [branding, setBranding] = useState<BrandingData | null>(null);
     const [patientName, setPatientName] = useState<string>('');
 
+    const fetchDocuments = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch('/api/patient/documents', {
+                credentials: 'include',
+            });
+
+            if (!res.ok) {
+                if (res.status === 401) {
+                    navigate(`/patient/${slug}/login`);
+                    return;
+                }
+                throw new Error('Erreur lors du chargement');
+            }
+
+            const data = await res.json() as DocumentsResponse;
+            const nextDocuments = data.documents || [];
+            setDocuments(nextDocuments);
+
+            // Set patient name from first document
+            if (nextDocuments.length > 0) {
+                setPatientName(nextDocuments[0].patientName);
+            }
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Erreur lors du chargement');
+        } finally {
+            setLoading(false);
+        }
+    }, [navigate, slug]);
+
     // Check auth and fetch data
     useEffect(() => {
-        const token = localStorage.getItem('patientToken');
-        const storedSlug = localStorage.getItem('patientSlug');
-
-        if (!token || storedSlug !== slug) {
-            navigate(`/patient/${slug}/login`);
-            return;
-        }
-
         // Fetch branding
         fetch(`/api/public/branding/${slug}`)
             .then(res => res.json())
@@ -45,46 +73,14 @@ export default function PatientDashboard() {
             .catch(() => setBranding({ name: 'MedLab', brandColor: '#3B82F6', brandLogoUrl: null }));
 
         // Fetch documents
-        fetchDocuments(token);
-    }, [slug, navigate]);
-
-    const fetchDocuments = async (token: string) => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            const res = await fetch('/api/patient/documents', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (!res.ok) {
-                if (res.status === 401) {
-                    localStorage.removeItem('patientToken');
-                    navigate(`/patient/${slug}/login`);
-                    return;
-                }
-                throw new Error('Erreur lors du chargement');
-            }
-
-            const data = await res.json();
-            setDocuments(data.documents || []);
-
-            // Set patient name from first document
-            if (data.documents?.length > 0) {
-                setPatientName(data.documents[0].patientName);
-            }
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+        fetchDocuments();
+    }, [slug, fetchDocuments]);
 
     const handleLogout = () => {
-        localStorage.removeItem('patientToken');
-        localStorage.removeItem('patientSlug');
+        fetch('/api/patient/auth/logout', {
+            method: 'POST',
+            credentials: 'include',
+        }).catch(() => undefined);
         navigate(`/patient/${slug}/login`);
     };
 
@@ -179,7 +175,7 @@ export default function PatientDashboard() {
                     <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
                         <p className="text-red-600">{error}</p>
                         <button
-                            onClick={() => fetchDocuments(localStorage.getItem('patientToken') || '')}
+                            onClick={() => fetchDocuments()}
                             className="mt-4 text-red-500 hover:underline"
                         >
                             Réessayer

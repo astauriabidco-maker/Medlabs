@@ -63,7 +63,7 @@ export function SystemAlerts() {
     const [loading, setLoading] = React.useState(true);
     const [filter, setFilter] = React.useState<'all' | 'unread'>('unread');
 
-    const fetchAlerts = async () => {
+    const fetchAlerts = React.useCallback(async () => {
         setLoading(true);
         try {
             const params = filter === 'all' ? '?includeRead=true' : '';
@@ -76,11 +76,11 @@ export function SystemAlerts() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter]);
 
     React.useEffect(() => {
         fetchAlerts();
-    }, [filter]);
+    }, [fetchAlerts]);
 
     const handleMarkAsRead = async (id: string) => {
         try {

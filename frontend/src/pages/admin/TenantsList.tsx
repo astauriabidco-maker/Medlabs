@@ -54,7 +54,7 @@ export function TenantsList() {
         smsTopup: 0,
     });
 
-    const fetchTenants = async () => {
+    const fetchTenants = React.useCallback(async () => {
         try {
             const res = await api.get('/api/tenants');
             if (res.ok) {
@@ -65,11 +65,11 @@ export function TenantsList() {
             console.error(error);
             addToast(t('errors.fetch_failed'), 'error');
         }
-    };
+    }, [addToast, t]);
 
     React.useEffect(() => {
         fetchTenants();
-    }, []);
+    }, [fetchTenants]);
 
     const handleCreate = async () => {
         try {

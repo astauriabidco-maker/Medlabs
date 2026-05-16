@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { DataTable, useToast } from '@/components/ui-dashboard';
 import { Search, Eye, RefreshCw, Trash2, Send, FileText, MessageSquare, AlertTriangle } from 'lucide-react';
@@ -27,11 +27,7 @@ export default function ResultsHistory() {
     const [fixModalOpen, setFixModalOpen] = useState(false);
     const [selectedResult, setSelectedResult] = useState<Result | null>(null);
 
-    useEffect(() => {
-        fetchResults();
-    }, [searchTerm]);
-
-    const fetchResults = async () => {
+    const fetchResults = useCallback(async () => {
         try {
             const res = await api.get(`/api/results?search=${encodeURIComponent(searchTerm)}`);
             if (!res.ok) throw new Error('Failed to fetch');
@@ -41,7 +37,11 @@ export default function ResultsHistory() {
             console.error('Fetch Error:', error);
             addToast(t('errors.fetch_failed'), 'error');
         }
-    };
+    }, [addToast, searchTerm, t]);
+
+    useEffect(() => {
+        fetchResults();
+    }, [fetchResults]);
 
     const handlePreview = async (id: string) => {
         try {

@@ -1,51 +1,78 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
 export interface PatientPayload {
+  phone: string;
+  role: 'PATIENT';
+  tenantId: string;
+  type: 'patient';
+}
+
+interface PatientRequest extends Request {
+  patient?: {
     phone: string;
-    role: 'PATIENT';
     tenantId: string;
-    type: 'patient';
+  };
 }
 
 @Injectable()
 export class PatientAuthGuard implements CanActivate {
-    constructor(private readonly jwtService: JwtService) { }
+  constructor(private readonly jwtService: JwtService) {}
 
-    async canActivate(context: ExecutionContext): Promise<boolean> {
-        const request = context.switchToHttp().getRequest<Request>();
-        const token = this.extractTokenFromHeader(request);
+  private getPatientSecret(): string {
+    const secret = process.env.PATIENT_JWT_SECRET;
+    if (!secret) {
+      throw new Error('CRITICAL: PATIENT_JWT_SECRET is not configured.');
+    }
+    return secret;
+  }
 
-        if (!token) {
-            throw new UnauthorizedException('Token manquant');
-        }
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<PatientRequest>();
+    const token = this.extractToken(request);
 
-        try {
-            const payload = await this.jwtService.verifyAsync<PatientPayload>(token);
-
-            // Verify this is a patient token, not an admin token
-            if (payload.type !== 'patient' || payload.role !== 'PATIENT') {
-                throw new UnauthorizedException('Token patient invalide');
-            }
-
-            // Attach patient info to request
-            (request as any).patient = {
-                phone: payload.phone,
-                tenantId: payload.tenantId,
-            };
-
-            return true;
-        } catch (error) {
-            throw new UnauthorizedException('Token invalide ou expiré');
-        }
+    if (!token) {
+      throw new UnauthorizedException('Token manquant');
     }
 
-    private extractTokenFromHeader(request: Request): string | undefined {
-        const authHeader = request.headers.authorization;
-        if (!authHeader) return undefined;
+    try {
+      const payload = await this.jwtService.verifyAsync<PatientPayload>(token, {
+        secret: this.getPatientSecret(),
+      });
 
-        const [type, token] = authHeader.split(' ');
-        return type === 'Bearer' ? token : undefined;
+      // Verify this is a patient token, not an admin token
+      if (payload.type !== 'patient' || payload.role !== 'PATIENT') {
+        throw new UnauthorizedException('Token patient invalide');
+      }
+
+      // Attach patient info to request
+      request.patient = {
+        phone: payload.phone,
+        tenantId: payload.tenantId,
+      };
+
+      return true;
+    } catch {
+      throw new UnauthorizedException('Token invalide ou expiré');
     }
+  }
+
+  private extractToken(request: PatientRequest): string | undefined {
+    const cookieToken = request.cookies?.patient_access_token as
+      | string
+      | undefined;
+    if (cookieToken) return cookieToken;
+
+    const authHeader = request.headers.authorization;
+    if (!authHeader) return undefined;
+
+    const [type, token] = authHeader.split(' ');
+    return type === 'Bearer' ? token : undefined;
+  }
 }

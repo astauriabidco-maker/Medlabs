@@ -44,6 +44,7 @@ describe('PatientAuthService', () => {
     let notificationService: ReturnType<typeof createMockNotificationService>;
 
     beforeEach(async () => {
+        process.env.PATIENT_JWT_SECRET = 'test-patient-secret-with-at-least-32-chars';
         prisma = createMockPrismaService();
         jwtService = createMockJwtService();
         notificationService = createMockNotificationService();

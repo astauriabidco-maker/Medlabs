@@ -4,56 +4,119 @@
  */
 
 export function validateEnvironment(): void {
-    const errors: string[] = [];
+  const errors: string[] = [];
 
-    // 1. Check NODE_ENV
-    if (!process.env.NODE_ENV) {
-        console.warn('⚠️ NODE_ENV is not set. Defaulting to "development".');
+  // 1. Check NODE_ENV
+  if (!process.env.NODE_ENV) {
+    console.warn('⚠️ NODE_ENV is not set. Defaulting to "development".');
+  }
+
+  // 2. Validate JWT_SECRET
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    errors.push('JWT_SECRET is required but not set.');
+  } else if (jwtSecret.length < 32) {
+    errors.push(
+      `JWT_SECRET must be at least 32 characters. Current length: ${jwtSecret.length}`,
+    );
+  }
+
+  // 2b. Validate PATIENT_JWT_SECRET (used for patient document access)
+  const patientSecret = process.env.PATIENT_JWT_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    if (!patientSecret) {
+      errors.push('PATIENT_JWT_SECRET is required in production.');
+    } else if (patientSecret.length < 32) {
+      errors.push(
+        `PATIENT_JWT_SECRET must be at least 32 characters. Current length: ${patientSecret.length}`,
+      );
+    }
+  }
+
+  // 3. Validate DATABASE_URL in production
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.DATABASE_URL) {
+      errors.push('DATABASE_URL is required in production.');
     }
 
-    // 2. Validate JWT_SECRET
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-        errors.push('JWT_SECRET is required but not set.');
-    } else if (jwtSecret.length < 32) {
-        errors.push(`JWT_SECRET must be at least 32 characters. Current length: ${jwtSecret.length}`);
+    if (!process.env.FRONTEND_URL) {
+      errors.push('FRONTEND_URL is required in production for CORS.');
     }
 
-    // 2b. Validate PATIENT_JWT_SECRET (used for patient document access)
-    const patientSecret = process.env.PATIENT_JWT_SECRET;
-    if (process.env.NODE_ENV === 'production') {
-        if (!patientSecret) {
-            errors.push('PATIENT_JWT_SECRET is required in production.');
-        } else if (patientSecret.length < 32) {
-            errors.push(`PATIENT_JWT_SECRET must be at least 32 characters. Current length: ${patientSecret.length}`);
-        }
+    const cookieSameSite = process.env.AUTH_COOKIE_SAMESITE?.toLowerCase();
+    if (cookieSameSite && !['strict', 'lax', 'none'].includes(cookieSameSite)) {
+      errors.push('AUTH_COOKIE_SAMESITE must be one of: strict, lax, none.');
     }
 
-    // 3. Validate DATABASE_URL in production
-    if (process.env.NODE_ENV === 'production') {
-        if (!process.env.DATABASE_URL) {
-            errors.push('DATABASE_URL is required in production.');
-        }
+    if (
+      cookieSameSite === 'none' &&
+      process.env.AUTH_COOKIE_SECURE === 'false'
+    ) {
+      errors.push('AUTH_COOKIE_SAMESITE=none requires secure cookies.');
+    }
+  }
 
-        if (!process.env.FRONTEND_URL) {
-            errors.push('FRONTEND_URL is required in production for CORS.');
-        }
+  // 4. Validate SMS Provider credentials in production
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.MSG91_AUTH_KEY && !process.env.SMS_PROVIDER_KEY) {
+      console.warn(
+        '⚠️ No SMS provider configured. SMS notifications will fail.',
+      );
     }
 
-    // 4. Validate SMS Provider credentials in production
-    if (process.env.NODE_ENV === 'production') {
-        if (!process.env.MSG91_AUTH_KEY && !process.env.SMS_PROVIDER_KEY) {
-            console.warn('⚠️ No SMS provider configured. SMS notifications will fail.');
-        }
+    if (!process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
+      console.warn(
+        '⚠️ WHATSAPP_WEBHOOK_VERIFY_TOKEN is not configured. Meta webhook setup verification will fail.',
+      );
     }
 
-    // Throw if any critical errors
-    if (errors.length > 0) {
-        console.error('\n🚨 ENVIRONMENT VALIDATION FAILED:\n');
-        errors.forEach((err, i) => console.error(`   ${i + 1}. ${err}`));
-        console.error('\n');
-        throw new Error('Application cannot start due to environment validation errors.');
+    if (!process.env.WHATSAPP_APP_SECRET && !process.env.META_APP_SECRET) {
+      console.warn(
+        '⚠️ WHATSAPP_APP_SECRET/META_APP_SECRET is not configured. Meta webhook callbacks will be rejected.',
+      );
     }
 
-    console.log('✅ Environment validation passed.');
+    if (!process.env.TWILIO_AUTH_TOKEN) {
+      console.warn(
+        '⚠️ TWILIO_AUTH_TOKEN is not configured. Twilio webhook callbacks will be rejected.',
+      );
+    }
+  }
+
+  // 5. Validate storage configuration in production
+  if (process.env.NODE_ENV === 'production') {
+    for (const key of [
+      'S3_BUCKET',
+      'S3_ACCESS_KEY',
+      'S3_SECRET_KEY',
+      'S3_REGION',
+    ]) {
+      if (!process.env[key]) {
+        errors.push(`${key} is required in production for document storage.`);
+      }
+    }
+
+    if (
+      !process.env.PAYMENT_WEBHOOK_SECRET &&
+      !process.env.CAMPAY_WEBHOOK_SECRET &&
+      !process.env.ORANGE_MONEY_WEBHOOK_SECRET &&
+      !process.env.MTN_MOMO_WEBHOOK_SECRET
+    ) {
+      errors.push(
+        'At least one payment webhook secret is required in production.',
+      );
+    }
+  }
+
+  // Throw if any critical errors
+  if (errors.length > 0) {
+    console.error('\n🚨 ENVIRONMENT VALIDATION FAILED:\n');
+    errors.forEach((err, i) => console.error(`   ${i + 1}. ${err}`));
+    console.error('\n');
+    throw new Error(
+      'Application cannot start due to environment validation errors.',
+    );
+  }
+
+  console.log('✅ Environment validation passed.');
 }

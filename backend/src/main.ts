@@ -9,6 +9,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { randomUUID } from 'crypto';
 import { validateEnvironment } from './config/env.validation';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -17,7 +18,22 @@ async function bootstrap() {
   // Validate environment before starting
   validateEnvironment();
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  const isProduction = process.env.NODE_ENV === 'production';
+  const trustProxy = process.env.TRUST_PROXY_HOPS
+    ? Number(process.env.TRUST_PROXY_HOPS)
+    : isProduction
+      ? 1
+      : false;
+
+  app.set('trust proxy', trustProxy);
+
+  app.use((req: any, res: any, next: () => void) => {
+    const requestId = req.headers['x-request-id'] || randomUUID();
+    req.requestId = Array.isArray(requestId) ? requestId[0] : requestId;
+    res.setHeader('x-request-id', req.requestId);
+    next();
+  });
 
   // Serve static files (logos, public uploads)
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
@@ -37,7 +53,8 @@ async function bootstrap() {
   // ============================================
   const config = new DocumentBuilder()
     .setTitle('MedLab Public API')
-    .setDescription(`
+    .setDescription(
+      `
 ## MedLab Platform API — v2.0
 
 Comprehensive REST API for the **MedLab** multi-tenant SaaS laboratory management platform.
@@ -64,7 +81,8 @@ All protected routes require a **JWT Bearer token** obtained via \`POST /api/aut
 
 ### 📧 Contact
 For integration questions: **support@medlab.cm**
-    `)
+    `,
+    )
     .setVersion('2.0')
     .setContact('MedLab Support', 'https://medlab.cm', 'support@medlab.cm')
     .setLicense('Proprietary', 'https://medlab.cm/legal/terms')
@@ -77,13 +95,22 @@ For integration questions: **support@medlab.cm**
         description: 'Enter JWT token obtained from POST /api/auth/login',
         in: 'header',
       },
-      'JWT-auth'
+      'JWT-auth',
     )
     .addTag('Auth', 'Authentication, password reset, and SSO/LDAP endpoints')
-    .addTag('Tenants', 'Multi-tenant laboratory management, branding, licensing, and plan management')
-    .addTag('Users Management', 'CRUD operations for platform users (Super Admin only)')
+    .addTag(
+      'Tenants',
+      'Multi-tenant laboratory management, branding, licensing, and plan management',
+    )
+    .addTag(
+      'Users Management',
+      'CRUD operations for platform users (Super Admin only)',
+    )
     .addTag('Reporting', 'Custom report generation with optional branding')
-    .addTag('Integration', 'External system integrations (LIS, HL7 message processing)')
+    .addTag(
+      'Integration',
+      'External system integrations (LIS, HL7 message processing)',
+    )
     .addTag('Sync', 'Windows desktop synchronization agent API')
     .addTag('Health', 'Platform health checks and readiness probes')
     .addTag('Signatures', 'Electronic document signing and verification')
@@ -119,47 +146,58 @@ For integration questions: **support@medlab.cm**
   app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
   // Global Validation Pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // ============================================
   // SECURITY: Helmet - Secure HTTP Headers
   // ============================================
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for UI
-        imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        frameSrc: ["'none'"],
-        upgradeInsecureRequests: [],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for UI
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameSrc: ["'none'"],
+          upgradeInsecureRequests: [],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false, // Disable for PDF viewing
-    hsts: {
-      maxAge: 31536000, // 1 year
-      includeSubDomains: true,
-      preload: true,
-    },
-  }));
+      crossOriginEmbedderPolicy: false, // Disable for PDF viewing
+      hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true,
+      },
+    }),
+  );
 
   // ============================================
   // SECURITY: Strict CORS Configuration
   // ============================================
   const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174']; // Dev defaults
+    ? process.env.FRONTEND_URL.split(',').map((url) => url.trim())
+    : [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'http://localhost:5174',
+      ]; // Dev defaults
 
   app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // Allow requests with no origin (mobile apps, payment webhooks, curl, etc.)
       if (!origin) {
         callback(null, true);
         return;
@@ -173,7 +211,19 @@ For integration questions: **support@medlab.cm**
       }
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'X-Request-Id',
+      'X-Payment-Access-Token',
+      'X-MedLab-Signature',
+      'X-Payment-Signature',
+      'X-Campay-Signature',
+      'X-Orange-Signature',
+      'X-Mtn-Signature',
+    ],
+    exposedHeaders: ['X-Request-Id'],
     credentials: true,
   });
 

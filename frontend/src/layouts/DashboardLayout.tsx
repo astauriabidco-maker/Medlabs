@@ -7,12 +7,10 @@ import {
     Users,
     Settings,
     FileText,
-    MessageSquare,
     Key,
     Menu,
     X,
     LogOut,
-    ChevronDown,
     Upload,
     User as UserIcon,
     LayoutDashboard,
@@ -30,7 +28,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { useTheme } from '@/context/ThemeContext';
-import { OnboardingTour, useOnboardingSteps, RestartOnboardingButton } from '@/components/OnboardingTour';
+import {
+    OnboardingTour,
+    useOnboardingSteps,
+    RestartOnboardingButton,
+} from '@/components/OnboardingTour';
 
 interface NavItem {
     label: string; // Now this will be a translation key actually, but handled in render
@@ -41,122 +43,438 @@ interface NavItem {
 }
 
 type UserRole =
-    | 'SUPER_ADMIN' | 'PLATFORM_MANAGER' | 'PLATFORM_SUPPORT' | 'PLATFORM_SALES' | 'PLATFORM_ACCOUNTANT'
-    | 'LAB_ADMIN' | 'BUSINESS_MANAGER' | 'MANAGER' | 'TECHNICIAN' | 'RECEPTIONIST';
+    | 'SUPER_ADMIN'
+    | 'PLATFORM_MANAGER'
+    | 'PLATFORM_SUPPORT'
+    | 'PLATFORM_SALES'
+    | 'PLATFORM_ACCOUNTANT'
+    | 'LAB_ADMIN'
+    | 'BUSINESS_MANAGER'
+    | 'MANAGER'
+    | 'TECHNICIAN'
+    | 'RECEPTIONIST';
 
 const NAV_CONFIG: Record<UserRole, NavItem[]> = {
     // === PLATFORM ROLES (no tenant) ===
     SUPER_ADMIN: [
         // Full platform management
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
-        { label: 'Users & Staff', translationKey: 'nav.users', path: '/dashboard/users', icon: <Users className="w-5 h-5" /> },
-        { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
-        { label: 'Pricing & Plans', translationKey: 'nav.pricing', path: '/dashboard/pricing-manager', icon: <CreditCard className="w-5 h-5" /> },
-        { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
-        { label: 'Gestion Licences', translationKey: 'nav.licenses', path: '/dashboard/license-manager', icon: <Key className="w-5 h-5" /> },
-        { label: 'Platform Settings', translationKey: 'nav.platform', path: '/dashboard/platform', icon: <Settings className="w-5 h-5" /> },
-        { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
-        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
-        { label: 'Developer API', translationKey: 'nav.api', path: '/dashboard/api', icon: <Key className="w-5 h-5" /> },
-        { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
-        { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
-        { label: 'Financial', translationKey: 'nav.financial', path: '/dashboard/financial', icon: <CreditCard className="w-5 h-5" /> },
-        { label: 'OCR Config', translationKey: 'nav.ocrConfig', path: '/dashboard/ocr-config', icon: <FileText className="w-5 h-5" /> },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/super-admin',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Tenants',
+            translationKey: 'nav.tenants',
+            path: '/dashboard/tenants',
+            icon: <Building2 className="w-5 h-5" />,
+        },
+        {
+            label: 'Users & Staff',
+            translationKey: 'nav.users',
+            path: '/dashboard/users',
+            icon: <Users className="w-5 h-5" />,
+        },
+        {
+            label: 'User Directory',
+            translationKey: 'nav.directory',
+            path: '/dashboard/users-directory',
+            icon: <UserIcon className="w-5 h-5" />,
+        },
+        {
+            label: 'Pricing & Plans',
+            translationKey: 'nav.pricing',
+            path: '/dashboard/pricing-manager',
+            icon: <CreditCard className="w-5 h-5" />,
+        },
+        {
+            label: 'Marketplace',
+            translationKey: 'nav.marketplace',
+            path: '/dashboard/marketplace',
+            icon: <Package className="w-5 h-5" />,
+        },
+        {
+            label: 'Gestion Licences',
+            translationKey: 'nav.licenses',
+            path: '/dashboard/license-manager',
+            icon: <Key className="w-5 h-5" />,
+        },
+        {
+            label: 'Platform Settings',
+            translationKey: 'nav.platform',
+            path: '/dashboard/platform',
+            icon: <Settings className="w-5 h-5" />,
+        },
+        {
+            label: 'API Integration',
+            translationKey: 'nav.integration',
+            path: '/dashboard/integration',
+            icon: <Plug className="w-5 h-5" />,
+        },
+        {
+            label: 'Analytics BI',
+            translationKey: 'nav.analytics',
+            path: '/dashboard/analytics',
+            icon: <BarChart3 className="w-5 h-5" />,
+        },
+        {
+            label: 'Developer API',
+            translationKey: 'nav.api',
+            path: '/dashboard/api',
+            icon: <Key className="w-5 h-5" />,
+        },
+        {
+            label: 'Audit Logs',
+            translationKey: 'nav.audit',
+            path: '/dashboard/audit',
+            icon: <FileText className="w-5 h-5" />,
+        },
+        {
+            label: 'System Alerts',
+            translationKey: 'nav.systemAlerts',
+            path: '/dashboard/system-alerts',
+            icon: <AlertTriangle className="w-5 h-5" />,
+        },
+        {
+            label: 'Financial',
+            translationKey: 'nav.financial',
+            path: '/dashboard/financial',
+            icon: <CreditCard className="w-5 h-5" />,
+        },
+        {
+            label: 'OCR Config',
+            translationKey: 'nav.ocrConfig',
+            path: '/dashboard/ocr-config',
+            icon: <FileText className="w-5 h-5" />,
+        },
     ],
     PLATFORM_MANAGER: [
         // Daily platform management - tenants, users, alerts
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
-        { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
-        { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
-        { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/super-admin',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Tenants',
+            translationKey: 'nav.tenants',
+            path: '/dashboard/tenants',
+            icon: <Building2 className="w-5 h-5" />,
+        },
+        {
+            label: 'User Directory',
+            translationKey: 'nav.directory',
+            path: '/dashboard/users-directory',
+            icon: <UserIcon className="w-5 h-5" />,
+        },
+        {
+            label: 'System Alerts',
+            translationKey: 'nav.systemAlerts',
+            path: '/dashboard/system-alerts',
+            icon: <AlertTriangle className="w-5 h-5" />,
+        },
+        {
+            label: 'Audit Logs',
+            translationKey: 'nav.audit',
+            path: '/dashboard/audit',
+            icon: <FileText className="w-5 h-5" />,
+        },
     ],
     PLATFORM_SUPPORT: [
         // Technical support - tenants (read), logs, help
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
-        { label: 'User Directory', translationKey: 'nav.directory', path: '/dashboard/users-directory', icon: <UserIcon className="w-5 h-5" /> },
-        { label: 'System Alerts', translationKey: 'nav.systemAlerts', path: '/dashboard/system-alerts', icon: <AlertTriangle className="w-5 h-5" /> },
-        { label: 'Audit Logs', translationKey: 'nav.audit', path: '/dashboard/audit', icon: <FileText className="w-5 h-5" /> },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/super-admin',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Tenants',
+            translationKey: 'nav.tenants',
+            path: '/dashboard/tenants',
+            icon: <Building2 className="w-5 h-5" />,
+        },
+        {
+            label: 'User Directory',
+            translationKey: 'nav.directory',
+            path: '/dashboard/users-directory',
+            icon: <UserIcon className="w-5 h-5" />,
+        },
+        {
+            label: 'System Alerts',
+            translationKey: 'nav.systemAlerts',
+            path: '/dashboard/system-alerts',
+            icon: <AlertTriangle className="w-5 h-5" />,
+        },
+        {
+            label: 'Audit Logs',
+            translationKey: 'nav.audit',
+            path: '/dashboard/audit',
+            icon: <FileText className="w-5 h-5" />,
+        },
     ],
     PLATFORM_SALES: [
         // Commercial - pricing, subscriptions
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
-        { label: 'Pricing & Plans', translationKey: 'nav.pricing', path: '/dashboard/pricing-manager', icon: <CreditCard className="w-5 h-5" /> },
-        { label: 'Gestion Licences', translationKey: 'nav.licenses', path: '/dashboard/license-manager', icon: <Key className="w-5 h-5" /> },
-        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/super-admin',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Tenants',
+            translationKey: 'nav.tenants',
+            path: '/dashboard/tenants',
+            icon: <Building2 className="w-5 h-5" />,
+        },
+        {
+            label: 'Pricing & Plans',
+            translationKey: 'nav.pricing',
+            path: '/dashboard/pricing-manager',
+            icon: <CreditCard className="w-5 h-5" />,
+        },
+        {
+            label: 'Gestion Licences',
+            translationKey: 'nav.licenses',
+            path: '/dashboard/license-manager',
+            icon: <Key className="w-5 h-5" />,
+        },
+        {
+            label: 'Analytics BI',
+            translationKey: 'nav.analytics',
+            path: '/dashboard/analytics',
+            icon: <BarChart3 className="w-5 h-5" />,
+        },
     ],
     PLATFORM_ACCOUNTANT: [
         // Finance - financial dashboard, payments
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/super-admin', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Financial', translationKey: 'nav.financial', path: '/dashboard/financial', icon: <CreditCard className="w-5 h-5" /> },
-        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" /> },
-        { label: 'Tenants', translationKey: 'nav.tenants', path: '/dashboard/tenants', icon: <Building2 className="w-5 h-5" /> },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/super-admin',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Financial',
+            translationKey: 'nav.financial',
+            path: '/dashboard/financial',
+            icon: <CreditCard className="w-5 h-5" />,
+        },
+        {
+            label: 'Analytics BI',
+            translationKey: 'nav.analytics',
+            path: '/dashboard/analytics',
+            icon: <BarChart3 className="w-5 h-5" />,
+        },
+        {
+            label: 'Tenants',
+            translationKey: 'nav.tenants',
+            path: '/dashboard/tenants',
+            icon: <Building2 className="w-5 h-5" />,
+        },
     ],
 
     // === TENANT ROLES (with tenantId) ===
     LAB_ADMIN: [
         // Technical admin - full access
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
-        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
-        { label: 'My Team', translationKey: 'nav.team', path: '/dashboard/team', icon: <Users className="w-5 h-5" /> },
-        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
-        { label: 'Patient Portal', translationKey: 'nav.patientPortal', path: '/dashboard/patient-portal', icon: <Heart className="w-5 h-5" />, requiredFeature: 'PATIENT_PORTAL' },
-        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
-        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" />, requiredFeature: 'ANALYTICS_BI' },
-        { label: 'API Integration', translationKey: 'nav.integration', path: '/dashboard/integration', icon: <Plug className="w-5 h-5" /> },
-        { label: 'Marketplace', translationKey: 'nav.marketplace', path: '/dashboard/marketplace', icon: <Package className="w-5 h-5" /> },
-        { label: 'Lab Settings', translationKey: 'nav.labSettings', path: '/dashboard/settings', icon: <Settings className="w-5 h-5" /> },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/lab-home',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'New Result',
+            translationKey: 'nav.upload',
+            path: '/dashboard/upload',
+            icon: <Upload className="w-5 h-5" />,
+        },
+        {
+            label: 'Sent History',
+            translationKey: 'nav.history',
+            path: '/dashboard/history',
+            icon: <FileText className="w-5 h-5" />,
+        },
+        {
+            label: 'My Team',
+            translationKey: 'nav.team',
+            path: '/dashboard/team',
+            icon: <Users className="w-5 h-5" />,
+        },
+        {
+            label: 'Appointments',
+            translationKey: 'nav.appointments',
+            path: '/dashboard/appointments',
+            icon: <Calendar className="w-5 h-5" />,
+            requiredFeature: 'APPOINTMENTS',
+        },
+        {
+            label: 'Patient Portal',
+            translationKey: 'nav.patientPortal',
+            path: '/dashboard/patient-portal',
+            icon: <Heart className="w-5 h-5" />,
+            requiredFeature: 'PATIENT_PORTAL',
+        },
+        {
+            label: 'Critical Alerts',
+            translationKey: 'nav.alerts',
+            path: '/dashboard/alerts',
+            icon: <AlertTriangle className="w-5 h-5" />,
+            requiredFeature: 'CRITICAL_ALERTS',
+        },
+        {
+            label: 'Analytics BI',
+            translationKey: 'nav.analytics',
+            path: '/dashboard/analytics',
+            icon: <BarChart3 className="w-5 h-5" />,
+            requiredFeature: 'ANALYTICS_BI',
+        },
+        {
+            label: 'API Integration',
+            translationKey: 'nav.integration',
+            path: '/dashboard/integration',
+            icon: <Plug className="w-5 h-5" />,
+        },
+        {
+            label: 'Marketplace',
+            translationKey: 'nav.marketplace',
+            path: '/dashboard/marketplace',
+            icon: <Package className="w-5 h-5" />,
+        },
+        {
+            label: 'Lab Settings',
+            translationKey: 'nav.labSettings',
+            path: '/dashboard/settings',
+            icon: <Settings className="w-5 h-5" />,
+        },
     ],
     BUSINESS_MANAGER: [
         // Commercial/Finance - analytics, stats, payments (no technical config)
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
-        { label: 'Analytics BI', translationKey: 'nav.analytics', path: '/dashboard/analytics', icon: <BarChart3 className="w-5 h-5" />, requiredFeature: 'ANALYTICS_BI' },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/lab-home',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Sent History',
+            translationKey: 'nav.history',
+            path: '/dashboard/history',
+            icon: <FileText className="w-5 h-5" />,
+        },
+        {
+            label: 'Analytics BI',
+            translationKey: 'nav.analytics',
+            path: '/dashboard/analytics',
+            icon: <BarChart3 className="w-5 h-5" />,
+            requiredFeature: 'ANALYTICS_BI',
+        },
     ],
     MANAGER: [
         // Operations supervisor - daily operations, appointments, alerts
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
-        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
-        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
-        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/lab-home',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'New Result',
+            translationKey: 'nav.upload',
+            path: '/dashboard/upload',
+            icon: <Upload className="w-5 h-5" />,
+        },
+        {
+            label: 'Sent History',
+            translationKey: 'nav.history',
+            path: '/dashboard/history',
+            icon: <FileText className="w-5 h-5" />,
+        },
+        {
+            label: 'Appointments',
+            translationKey: 'nav.appointments',
+            path: '/dashboard/appointments',
+            icon: <Calendar className="w-5 h-5" />,
+            requiredFeature: 'APPOINTMENTS',
+        },
+        {
+            label: 'Critical Alerts',
+            translationKey: 'nav.alerts',
+            path: '/dashboard/alerts',
+            icon: <AlertTriangle className="w-5 h-5" />,
+            requiredFeature: 'CRITICAL_ALERTS',
+        },
     ],
     TECHNICIAN: [
         // Lab technician - upload results, view history, handle alerts
-        { label: 'New Result', translationKey: 'nav.upload', path: '/dashboard/upload', icon: <Upload className="w-5 h-5" /> },
-        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
-        { label: 'Critical Alerts', translationKey: 'nav.alerts', path: '/dashboard/alerts', icon: <AlertTriangle className="w-5 h-5" />, requiredFeature: 'CRITICAL_ALERTS' },
+        {
+            label: 'New Result',
+            translationKey: 'nav.upload',
+            path: '/dashboard/upload',
+            icon: <Upload className="w-5 h-5" />,
+        },
+        {
+            label: 'Sent History',
+            translationKey: 'nav.history',
+            path: '/dashboard/history',
+            icon: <FileText className="w-5 h-5" />,
+        },
+        {
+            label: 'Critical Alerts',
+            translationKey: 'nav.alerts',
+            path: '/dashboard/alerts',
+            icon: <AlertTriangle className="w-5 h-5" />,
+            requiredFeature: 'CRITICAL_ALERTS',
+        },
     ],
     RECEPTIONIST: [
         // Front desk - read-only, manage appointments
-        { label: 'Dashboard', translationKey: 'nav.dashboard', path: '/dashboard/lab-home', icon: <LayoutDashboard className="w-5 h-5" /> },
-        { label: 'Sent History', translationKey: 'nav.history', path: '/dashboard/history', icon: <FileText className="w-5 h-5" /> },
-        { label: 'Appointments', translationKey: 'nav.appointments', path: '/dashboard/appointments', icon: <Calendar className="w-5 h-5" />, requiredFeature: 'APPOINTMENTS' },
+        {
+            label: 'Dashboard',
+            translationKey: 'nav.dashboard',
+            path: '/dashboard/lab-home',
+            icon: <LayoutDashboard className="w-5 h-5" />,
+        },
+        {
+            label: 'Sent History',
+            translationKey: 'nav.history',
+            path: '/dashboard/history',
+            icon: <FileText className="w-5 h-5" />,
+        },
+        {
+            label: 'Appointments',
+            translationKey: 'nav.appointments',
+            path: '/dashboard/appointments',
+            icon: <Calendar className="w-5 h-5" />,
+            requiredFeature: 'APPOINTMENTS',
+        },
     ],
 };
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { t, i18n } = useTranslation();
-    const { user, logout, switchRole, isImpersonating, stopImpersonating } = useAuth();
+    const { user, logout, isImpersonating, stopImpersonating } = useAuth();
     const { resolvedTheme, toggleTheme } = useTheme();
     const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
-    const [roleMenuOpen, setRoleMenuOpen] = React.useState(false);
-    const [accessibleFeatures, setAccessibleFeatures] = React.useState<string[]>([]);
+    const [accessibleFeatures, setAccessibleFeatures] = React.useState<
+        string[]
+    >([]);
     const [featuresLoaded, setFeaturesLoaded] = React.useState(false);
+    const onboardingSteps = useOnboardingSteps();
 
     // Load accessible features for LAB_ADMIN and TECHNICIAN users
     React.useEffect(() => {
         const loadAccessibleFeatures = async () => {
-            if (user && (user.role === 'LAB_ADMIN' || user.role === 'TECHNICIAN')) {
+            if (
+                user &&
+                (user.role === 'LAB_ADMIN' || user.role === 'TECHNICIAN')
+            ) {
                 try {
-                    const token = localStorage.getItem('token');
                     const res = await fetch('/api/tenants/me/access', {
-                        headers: { Authorization: `Bearer ${token}` }
+                        credentials: 'include',
                     });
                     if (res.ok) {
                         const data = await res.json();
@@ -180,18 +498,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     // Filter nav items based on accessible features
     const allNavItems = NAV_CONFIG[user.role] || [];
-    const navItems = allNavItems.filter(item => {
+    const navItems = allNavItems.filter((item) => {
         // If no feature required, always show
         if (!item.requiredFeature) return true;
         // If features not loaded yet for LAB roles, hide premium items
-        if (!featuresLoaded && (user.role === 'LAB_ADMIN' || user.role === 'TECHNICIAN')) return false;
+        if (
+            !featuresLoaded &&
+            (user.role === 'LAB_ADMIN' || user.role === 'TECHNICIAN')
+        )
+            return false;
         // Check if user has the required feature
         return accessibleFeatures.includes(item.requiredFeature);
     });
 
-    // Onboarding
-    const onboardingSteps = useOnboardingSteps();
-    const isPlatformRole = ['SUPER_ADMIN', 'PLATFORM_MANAGER'].includes(user.role);
+    const isPlatformRole = ['SUPER_ADMIN', 'PLATFORM_MANAGER'].includes(
+        user.role,
+    );
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -200,24 +522,40 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             {/* Mobile Header */}
             <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b px-4 py-3 flex items-center justify-between">
-                <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <button
+                    onClick={() => setSidebarOpen(true)}
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                >
                     <Menu className="w-6 h-6" />
                 </button>
                 <span className="font-semibold">{t('platform.title')}</span>
-                <button onClick={toggleTheme} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                    {resolvedTheme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+                <button
+                    onClick={toggleTheme}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                    {resolvedTheme === 'dark' ? (
+                        <Sun className="w-5 h-5 text-amber-400" />
+                    ) : (
+                        <Moon className="w-5 h-5 text-slate-600" />
+                    )}
                 </button>
             </header>
 
             {/* Sidebar Overlay (Mobile) */}
             {sidebarOpen && (
-                <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setSidebarOpen(false)} />
+                <div
+                    className="lg:hidden fixed inset-0 z-50 bg-black/50"
+                    onClick={() => setSidebarOpen(false)}
+                />
             )}
 
             {/* Impersonation Banner */}
             {isImpersonating && (
                 <div className="fixed top-0 left-0 right-0 z-[60] h-10 bg-amber-500 text-white flex items-center justify-center text-sm font-medium px-4">
-                    <span>{t('auth.impersonationBanner')} <strong>{user.email}</strong></span>
+                    <span>
+                        {t('auth.impersonationBanner')}{' '}
+                        <strong>{user.email}</strong>
+                    </span>
                     <button
                         onClick={stopImpersonating}
                         className="ml-4 bg-white/20 hover:bg-white/30 px-3 py-1 rounded text-xs transition-colors"
@@ -233,14 +571,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 className={cn(
                     'fixed top-0 left-0 z-50 h-full w-64 bg-white border-r transform transition-transform duration-200',
                     'lg:translate-x-0',
-                    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    sidebarOpen ? 'translate-x-0' : '-translate-x-full',
                 )}
             >
                 <div className="p-4 border-b flex items-center justify-between">
-                    <Link to="/dashboard" className="font-bold text-lg text-primary">
+                    <Link
+                        to="/dashboard"
+                        className="font-bold text-lg text-primary"
+                    >
                         MedLab
                     </Link>
-                    <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 hover:bg-gray-100 rounded">
+                    <button
+                        onClick={() => setSidebarOpen(false)}
+                        className="lg:hidden p-1 hover:bg-gray-100 rounded"
+                    >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -250,22 +594,40 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <div className="flex gap-2">
                         <button
                             onClick={() => i18n.changeLanguage('fr')}
-                            className={cn("flex-1 py-1 text-xs rounded border transition-colors", i18n.language.startsWith('fr') ? "bg-blue-50 border-blue-200 text-blue-700 font-medium" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50")}
+                            className={cn(
+                                'flex-1 py-1 text-xs rounded border transition-colors',
+                                i18n.language.startsWith('fr')
+                                    ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
+                            )}
                         >
                             Français
                         </button>
                         <button
                             onClick={() => i18n.changeLanguage('en')}
-                            className={cn("flex-1 py-1 text-xs rounded border transition-colors", i18n.language.startsWith('en') ? "bg-blue-50 border-blue-200 text-blue-700 font-medium" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50")}
+                            className={cn(
+                                'flex-1 py-1 text-xs rounded border transition-colors',
+                                i18n.language.startsWith('en')
+                                    ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
+                            )}
                         >
                             English
                         </button>
                         <button
                             onClick={toggleTheme}
                             className="flex items-center justify-center w-8 h-auto rounded border border-gray-200 hover:bg-gray-50 transition-all"
-                            title={resolvedTheme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+                            title={
+                                resolvedTheme === 'dark'
+                                    ? 'Mode clair'
+                                    : 'Mode sombre'
+                            }
                         >
-                            {resolvedTheme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
+                            {resolvedTheme === 'dark' ? (
+                                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                            ) : (
+                                <Moon className="w-3.5 h-3.5 text-slate-600" />
+                            )}
                         </button>
                     </div>
 
@@ -287,7 +649,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                                 location.pathname === item.path
                                     ? 'bg-primary text-primary-foreground'
-                                    : 'text-muted-foreground hover:bg-gray-100 hover:text-foreground'
+                                    : 'text-muted-foreground hover:bg-gray-100 hover:text-foreground',
                             )}
                         >
                             {item.icon}
@@ -303,8 +665,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             {user.email[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{user.email}</p>
-                            <p className="text-xs text-muted-foreground">{t(`roles.${user.role}`)}</p>
+                            <p className="text-sm font-medium truncate">
+                                {user.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {t(`roles.${user.role}`)}
+                            </p>
                         </div>
                     </div>
                     <RestartOnboardingButton />
@@ -319,7 +685,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </aside>
 
             {/* Main Content */}
-            <main className={cn("lg:ml-64 min-h-screen transition-all", isImpersonating ? "pt-24 lg:pt-10" : "pt-16 lg:pt-0")}>
+            <main
+                className={cn(
+                    'lg:ml-64 min-h-screen transition-all',
+                    isImpersonating ? 'pt-24 lg:pt-10' : 'pt-16 lg:pt-0',
+                )}
+            >
                 <div className="p-6">{children}</div>
             </main>
 
