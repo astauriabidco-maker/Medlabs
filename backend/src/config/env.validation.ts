@@ -86,6 +86,7 @@ export function validateEnvironment(): void {
   // 5. Validate storage configuration in production
   if (process.env.NODE_ENV === 'production') {
     for (const key of [
+      'S3_ENDPOINT',
       'S3_BUCKET',
       'S3_ACCESS_KEY',
       'S3_SECRET_KEY',
